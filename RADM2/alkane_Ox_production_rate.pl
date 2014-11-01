@@ -64,7 +64,6 @@ foreach my $run (@tagged_runs) {
             my $rate = $producer_yields->[$_] * $mecca->rate($reaction_number); 
             next if ($rate->sum == 0); # do not include reactions that do not occur 
             my ($r_number, $parent) = split /_/, $reaction; #remove tag from reaction number
-            next unless (defined $parent and $parent ~~ @alkanes);
             my $string;
             if (defined $parent) { # for tagged reactions
                 if ($parent ~~ @alkanes) {
