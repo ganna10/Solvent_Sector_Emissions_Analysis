@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# allocate alkanes Ox production from tagged MCM runs
+# allocate aromatics Ox production from tagged MCM runs
 # Version 0: Jane Coates 2/11/2014
 
 use strict;
@@ -75,11 +75,9 @@ foreach my $run (@tagged_runs) {
             my ($r_number, $parent) = split /_/, $reaction; #remove tag from reaction number
             my $string;
             if (defined $parent) { # for tagged reactions
-                if ($parent ~~ @alkanes) {
+                if ($parent ~~ @aromatics) {
                     $string = $parent;
-                } elsif ($parent eq "CH4") {
-                    $string = $parent;
-                } elsif ($parent ~~ @alkenes or $parent ~~ @aromatics or $parent ~~ @alcohols or $parent ~~ @carbonyls or $parent ~~ @acids or $parent ~~ @esters or $parent ~~ @ethers or $parent ~~ @alkynes or $parent ~~ @chlorinated ) {
+                } elsif ($parent ~~ @alkenes or $parent ~~ @alkanes or $parent ~~ @alcohols or $parent ~~ @carbonyls or $parent ~~ @acids or $parent ~~ @esters or $parent ~~ @ethers or $parent ~~ @alkynes or $parent ~~ @chlorinated or $parent eq "CH4") {
                     next;
                 } else {
                     print "Nothing found for $parent\n";
@@ -99,11 +97,9 @@ foreach my $run (@tagged_runs) {
             my ($r_number, $parent) = split /_/, $reaction; #remove tag from reaction number
             my $string;
             if (defined $parent) { # for tagged reactions
-                if ($parent ~~ @alkanes) {
+                if ($parent ~~ @aromatics) {
                     $string = $parent;
-                } elsif ($parent eq "CH4") {
-                    $string = $parent;
-                } elsif ($parent ~~ @alkenes or $parent ~~ @aromatics or $parent ~~ @alcohols or $parent ~~ @carbonyls or $parent ~~ @acids or $parent ~~ @esters or $parent ~~ @ethers or $parent ~~ @alkynes or $parent ~~ @chlorinated ) {
+                } elsif ($parent ~~ @alkenes or $parent ~~ @alkanes or $parent ~~ @alcohols or $parent ~~ @carbonyls or $parent ~~ @acids or $parent ~~ @esters or $parent ~~ @ethers or $parent ~~ @alkynes or $parent ~~ @chlorinated or $parent eq "CH4") {
                     next;
                 } else {
                     print "Nothing found for $parent\n";
@@ -160,25 +156,25 @@ $R->set('Time', [@days]);
 $R->run(q` data = data.frame() `);
 foreach my $run (keys %plot_data) {
     $R->run(q` pre = data.frame(Time) `);
-    foreach my $alkane (sort keys %{$plot_data{$run}}) {
-        $R->set('alkane', $alkane);
-        $R->set('rate', [map { $_ } $plot_data{$run}{$alkane}->dog]);
-        $R->run(q` pre[alkane] = rate `);
+    foreach my $aromatic (sort keys %{$plot_data{$run}}) {
+        $R->set('aromatic', $aromatic);
+        $R->set('rate', [map { $_ } $plot_data{$run}{$aromatic}->dog]);
+        $R->run(q` pre[aromatic] = rate `);
     }
     $R->set('speciation', $run);
     $R->run(q` pre$Speciation = rep(speciation, length(Time)) `,
-            q` pre = melt(pre, id.vars = c("Time", "Speciation"), variable.name = "Alkane", value.name = "Rate") `,
+            q` pre = melt(pre, id.vars = c("Time", "Speciation"), variable.name = "Aromatic", value.name = "Rate") `,
             q` data = rbind(data, pre) `,
     );
 }
 #my $p = $R->run(q` print(data) `);
 #print "$p\n";
 $R->run(q` scientific_10 <- function(x) { parse(text=gsub("e", " %*% 10^", scientific_format()(x))) } `, #scientific label format for y-axis
-        q` my.colours = c( "C2H6" = "#6c254f", "C3H8" = "#f9c500", "CHEX" = "#0e5628", "IC4H10" = "#ef6638", "IC5H12" = "#2b9eb3", "M2HEX" = "#b569b3", "M2PE" = "#0c3f78", "M3HEX" = "#6db875", "M3PE" = "#898989", "NC10H22" = "#000000", "NC11H24" = "#c65d6c", "NC12H26" = "#696537", "NC4H10" = "#86b650", "NC5H12" = "#76afca", "NC6H14" = "#dc3522", "NC7H16" = "#8c6238", "NC8H18" = "#9bb08f", "NC9H20" = "#8b1537", "NEOP" = "#ba8b01", "CH4" = "#0352cb") `,
-        q` my.names = c("CH4", "C2H6", "C3H8", "NC4H10", "IC4H10", "NC5H12", "IC5H12", "NEOP", "NC6H14", "M2PE", "M3PE", "NC7H16", "M2HEX", "M3HEX", "NC8H18", "NC9H20", "NC10H22", "NC11H24", "NC12H26", "CHEX" ) `,
+        q` my.colours = c( "BENZENE" = "#6c254f", "DIME35EB" = "#f9c500", "EBENZ" = "#0e5628", "IPBENZ" = "#ef6638", "METHTOL" = "#2b9eb3", "MXYL" = "#b569b3", "OXYL" = "#0c3f78", "PBENZ" = "#6db875", "PETHTOL" = "#898989", "PXYL" = "#000000", "STYRENE" = "#c65d6c", "TM123B" = "#696537", "TM124B" = "#86b650", "TM135B" = "#76afca", "TOLUENE" = "#dc3522") `,
+        q` my.names = c("BENZENE", "TOLUENE", "MXYL", "OXYL", "PXYL", "EBENZ", "PBENZ", "IPBENZ", "TM123B", "TM124B", "TM135B", "METHTOL", "PETHTOL", "STYRENE", "DIME35EB") `,
 );
 
-$R->run(q` plot = ggplot(data = data, aes(x = Time, y = Rate, fill = Alkane)) `,
+$R->run(q` plot = ggplot(data = data, aes(x = Time, y = Rate, fill = Aromatic)) `,
         q` plot = plot + geom_bar(stat = "identity") `,
         q` plot = plot + facet_wrap( ~ Speciation, nrow = 2)`,
         q` plot = plot + scale_y_continuous(label = scientific_10) `,
@@ -196,7 +192,7 @@ $R->run(q` plot = ggplot(data = data, aes(x = Time, y = Rate, fill = Alkane)) `,
         q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(my.names)) `,
 );
 
-$R->run(q` CairoPDF(file = "MCM_Ox_budget_alkanes.pdf", width = 200, height = 141) `,
+$R->run(q` CairoPDF(file = "MCM_Ox_budget_aromatics.pdf", width = 200, height = 141) `,
         q` print(plot) `,
         q` dev.off() `,
 );
