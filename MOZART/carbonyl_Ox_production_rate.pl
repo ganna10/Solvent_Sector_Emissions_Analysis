@@ -1,7 +1,6 @@
 #! /usr/bin/env perl
 # allocate carbonyl Ox production from tagged MOZART runs to VOC 
 # Version 0: Jane Coates 1/11/2014
-#### to do change plot levels
 
 use strict;
 use diagnostics;
@@ -138,6 +137,7 @@ $R->run(q` library(ggplot2) `);
 $R->run(q` library(reshape2) `);
 $R->run(q` library(Cairo) `);
 $R->run(q` library(grid) `);
+$R->run(q` library(plyr) `);
 $R->run(q` library(scales) `);
 
 my @days = ("Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7");
@@ -161,7 +161,8 @@ foreach my $speciation (keys %plot_data) {
 
 $R->run(q` my.colours = c( "CH2O" = "#6c254f", "CH3CHO" = "#f9c500", "MEK" = "#0e5628", "CH3COCH3" = "#ef6638", "MACR" = "#2b9eb3") `,
         q` scientific_10 <- function(x) { parse(text=gsub("e", " %*% 10^", scientific_format()(x))) } `, #scientific label format for y-axis
-        q` data$Carbonyl = factor(data$Carbonyl, levels = rev(c("CH2O", "CH3CHO", "MEK", "CH3COCH3", "MACR"))) `,
+        q` data$Carbonyl = factor(data$Carbonyl, levels = c("CH2O", "CH3CHO", "MACR", "CH3COCH3", "MEK")) `,
+        q` data = ddply(data, .(Carbonyl)) `,
 );
 #my $p = $R->run(q` print(data) `);
 #print $p, "\n";
@@ -181,7 +182,7 @@ $R->run(q` plot = ggplot(data = data, aes(x = time, y = Rate, fill = Carbonyl)) 
         q` plot = plot + theme(axis.text.y = element_text(size = 140))`,
         q` plot = plot + theme(axis.title.y = element_text(size = 200))`,
         q` plot = plot + theme(legend.title = element_blank(), legend.key.size = unit(7, "cm"), legend.text = element_text(size = 140, face = "bold"), legend.key = element_blank()) `, 
-        q` plot = plot + scale_fill_manual(values = my.colours) `,
+        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(levels(data$Carbonyl))) `,
 );
 
 $R->run(q` CairoPDF(file = "MOZART_carbonyls_Ox_budget.pdf", width = 200, height = 141) `,

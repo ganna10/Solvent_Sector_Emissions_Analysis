@@ -1,7 +1,6 @@
 #! /usr/bin/env perl
 # allocate acid Ox production from tagged MOZART runs to VOC 
 # Version 0: Jane Coates 1/11/2014
-#### to do change plot levels
 
 use strict;
 use diagnostics;
@@ -147,7 +146,7 @@ $R->run(q` data = data.frame() `);
 foreach my $speciation (keys %plot_data) {
     next unless ($speciation eq "IPCC");
     $R->run(q` pre = data.frame(time) `);
-    foreach my $acid (sort keys %{$plot_data{$speciation}}) {
+    foreach my $acid (reverse sort keys %{$plot_data{$speciation}}) {
         next if ($acid eq "Inorganic");
         $R->set('acid', $acid);
         $R->set('rate', [map { $_ } $plot_data{$speciation}{$acid}->dog]);

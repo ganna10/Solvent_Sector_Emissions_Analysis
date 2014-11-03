@@ -146,7 +146,7 @@ $R->run(q` data = data.frame() `);
 
 foreach my $speciation (keys %plot_data) {
     $R->run(q` pre = data.frame(time) `);
-    foreach my $alcohol (sort keys %{$plot_data{$speciation}}) {
+    foreach my $alcohol (reverse sort keys %{$plot_data{$speciation}}) {
         next if ($alcohol eq "Inorganic");
         $R->set('alcohol', $alcohol);
         $R->set('rate', [map { $_ } $plot_data{$speciation}{$alcohol}->dog]);
@@ -158,13 +158,13 @@ foreach my $speciation (keys %plot_data) {
             q` data = rbind(data, pre) `,
     );
 }
+#my $p = $R->run(q` print(data) `);
+#print $p, "\n";
 
 $R->run(q` my.colours = c( "CH3OH" = "#6c254f", "C2H5OH" = "#f9c500") `,
         q` scientific_10 <- function(x) { parse(text=gsub("e", " %*% 10^", scientific_format()(x))) } `, #scientific label format for y-axis
-        q` data$Alcohol = factor(data$Alcohol, levels = rev(c("CH3OH", "C2H5OH"))) `,
+        q` data$Alcohol = factor(data$Alcohol, levels = c("CH3OH", "C2H5OH")) `,
 );
-#my $p = $R->run(q` print(data) `);
-#print $p, "\n";
 
 $R->run(q` plot = ggplot(data = data, aes(x = time, y = Rate, fill = Alcohol)) `,
         q` plot = plot + facet_wrap( ~ Speciation, nrow = 2)`,
@@ -181,7 +181,7 @@ $R->run(q` plot = ggplot(data = data, aes(x = time, y = Rate, fill = Alcohol)) `
         q` plot = plot + theme(axis.text.y = element_text(size = 140))`,
         q` plot = plot + theme(axis.title.y = element_text(size = 200))`,
         q` plot = plot + theme(legend.title = element_blank(), legend.key.size = unit(7, "cm"), legend.text = element_text(size = 140, face = "bold"), legend.key = element_blank()) `, 
-        q` plot = plot + scale_fill_manual(values = my.colours) `,
+        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(levels(data$Alcohol))) `,
 );
 
 $R->run(q` CairoPDF(file = "MOZART_alcohols_Ox_budget.pdf", width = 200, height = 141) `,
