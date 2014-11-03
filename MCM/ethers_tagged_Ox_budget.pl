@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
-# allocate Ox production from tagged MCM runs to parent VOCs functional groups
-# Version 0: Jane Coates 1/11/2014
+# allocate ethers Ox production from tagged MCM runs
+# Version 0: Jane Coates 2/11/2014
 
 use strict;
 use diagnostics;
@@ -75,28 +75,10 @@ foreach my $run (@tagged_runs) {
             my ($r_number, $parent) = split /_/, $reaction; #remove tag from reaction number
             my $string;
             if (defined $parent) { # for tagged reactions
-                if ($parent ~~ @alkanes) {
-                    $string = "Alkanes";
-                } elsif ($parent ~~ @alkenes) {
-                    $string = "Alkenes";
-                } elsif ($parent ~~ @aromatics) {
-                    $string = "Aromatics";
-                } elsif ($parent ~~ @alcohols) {
-                    $string = "Alcohols";
-                } elsif ($parent ~~ @carbonyls) {
-                    $string = "Carbonyls";
-                } elsif ($parent ~~ @acids) {
-                    $string = "Acids";
-                } elsif ($parent ~~ @esters) {
-                    $string = "Esters";
-                } elsif ($parent ~~ @ethers) {
-                    $string = "Ethers";
-                } elsif ($parent ~~ @alkynes) {
-                    $string = "Alkynes";
-                } elsif ($parent ~~ @chlorinated) {
-                    $string = "Chlorinated";
-                } elsif ($parent eq "CH4") {
+                if ($parent ~~ @ethers) {
                     $string = $parent;
+                } elsif ($parent ~~ @alkenes or $parent ~~ @aromatics or $parent ~~ @carbonyls or $parent ~~ @alkanes or $parent ~~ @alcohols or $parent ~~ @acids or $parent ~~ @esters or $parent ~~ @alkynes or $parent ~~ @chlorinated or $parent eq "CH4") {
+                    next;
                 } else {
                     print "Nothing found for $parent\n";
                 }
@@ -115,28 +97,10 @@ foreach my $run (@tagged_runs) {
             my ($r_number, $parent) = split /_/, $reaction; #remove tag from reaction number
             my $string;
             if (defined $parent) { # for tagged reactions
-                if ($parent ~~ @alkanes) {
-                    $string = "Alkanes";
-                } elsif ($parent ~~ @alkenes) {
-                    $string = "Alkenes";
-                } elsif ($parent ~~ @aromatics) {
-                    $string = "Aromatics";
-                } elsif ($parent ~~ @alcohols) {
-                    $string = "Alcohols";
-                } elsif ($parent ~~ @carbonyls) {
-                    $string = "Carbonyls";
-                } elsif ($parent ~~ @acids) {
-                    $string = "Acids";
-                } elsif ($parent ~~ @esters) {
-                    $string = "Esters";
-                } elsif ($parent ~~ @ethers) {
-                    $string = "Ethers";
-                } elsif ($parent ~~ @alkynes) {
-                    $string = "Alkynes";
-                } elsif ($parent ~~ @chlorinated) {
-                    $string = "Chlorinated";
-                } elsif ($parent eq "CH4") {
+                if ($parent ~~ @ethers) {
                     $string = $parent;
+                } elsif ($parent ~~ @alkenes or $parent ~~ @aromatics or $parent ~~ @carbonyls or $parent ~~ @alkanes or $parent ~~ @alcohols or $parent ~~ @acids or $parent ~~ @esters or $parent ~~ @alkynes or $parent ~~ @chlorinated or $parent eq "CH4") {
+                    next;
                 } else {
                     print "Nothing found for $parent\n";
                 }
@@ -163,13 +127,10 @@ foreach my $run (@tagged_runs) {
 
 foreach my $run (sort keys %production_rates) { 
     foreach my $reaction (sort keys %{$production_rates{$run}{'Ox'}}) { #average out data that comes from all the tagged runs such as CH4, CO etc
-        next unless ($reaction eq 'CH4' or $reaction =~ / \+ /) ;
-        if ($reaction eq "CH4") {
-            $production_rates{$run}{'Ox'}{'Alkanes'} = $production_rates{$run}{'Ox'}{'Alkanes'} + ( $production_rates{$run}{'Ox'}{'CH4'} / get_number_of_tagged_runs($run) );
-            delete $production_rates{$run}{'Ox'}{$reaction};
-        } elsif ($reaction =~ / \+ /) {
-            $production_rates{$run}{'Ox'}{'Inorganic'} = $production_rates{$run}{'Ox'}{'Inorganic'} + ( $production_rates{$run}{'Ox'}{$reaction} / get_number_of_tagged_runs($run) );
-            delete $production_rates{$run}{'Ox'}{$reaction};
+        if ($reaction eq 'CH4') {
+            $production_rates{$run}{'Ox'}{$reaction} /= get_number_of_tagged_runs($run);
+        } elsif ($reaction =~ /\+/) {
+            delete $production_rates{$run}{"Ox"}{$reaction};
         }
     }
 }
@@ -196,26 +157,26 @@ $R->set('Time', [@days]);
 $R->run(q` data = data.frame() `);
 foreach my $run (keys %plot_data) {
     $R->run(q` pre = data.frame(Time) `);
-    foreach my $group (sort keys %{$plot_data{$run}}) {
-        $R->set('group', $group);
-        $R->set('rate', [map { $_ } $plot_data{$run}{$group}->dog]);
-        $R->run(q` pre[group] = rate `);
+    foreach my $ether (sort keys %{$plot_data{$run}}) {
+        $R->set('ether', $ether);
+        $R->set('rate', [map { $_ } $plot_data{$run}{$ether}->dog]);
+        $R->run(q` pre[ether] = rate `);
     }
     $R->set('speciation', $run);
     $R->run(q` pre$Speciation = rep(speciation, length(Time)) `,
-            q` pre = melt(pre, id.vars = c("Time", "Speciation"), variable.name = "Group", value.name = "Rate") `,
+            q` pre = melt(pre, id.vars = c("Time", "Speciation"), variable.name = "Ether", value.name = "Rate") `,
             q` data = rbind(data, pre) `,
     );
 }
-$R->run(q` scientific_10 <- function(x) { parse(text=gsub("e", " %*% 10^", scientific_format()(x))) } `, #scientific label format for y-axis
-        q` my.colours = c( "Alkanes" = "#6c254f", "Alkenes" = "#f9c500", "Aromatics" = "#0e5628", "Carbonyls" = "#ef6638", "Inorganic" = "#2b9eb3", "Alcohols" = "#b569b3", "Acids" = "#0c3f78", "Alkynes" = "#6db875", "Chlorinated" = "#898989", "Esters" = "#000000", "Ethers" = "#c65d6c") `,
-        q` data$Group = factor(data$Group, levels = c("Alkanes", "Alkenes", "Aromatics", "Carbonyls", "Alcohols", "Acids", "Alkynes", "Ethers", "Esters", "Chlorinated", "Inorganic")) `,
-        q` data = ddply(data, .(Group)) `,
-);
 #my $p = $R->run(q` print(data) `);
 #print "$p\n";
+$R->run(q` scientific_10 <- function(x) { parse(text=gsub("e", " %*% 10^", scientific_format()(x))) } `, #scientific label format for y-axis
+        q` my.colours = c( "CH3OCH3" = "#6c254f", "MO2EOL" = "#f9c500", "EOX2EOL" = "#0e5628", "PR2OHMOX" = "#ef6638", "BUOX2ETOH" = "#2b9eb3") `,
+        q` data$Ether = factor(data$Ether, levels = c("CH3OCH3", "MO2EOL", "EOX2EOL", "PR2OHMOX", "BUOX2ETOH" )) `,
+        q` data = ddply(data, .(Ether)) `,
+);
 
-$R->run(q` plot = ggplot(data = data, aes(x = Time, y = Rate, fill = Group)) `,
+$R->run(q` plot = ggplot(data = data, aes(x = Time, y = Rate, fill = Ether)) `,
         q` plot = plot + geom_bar(stat = "identity") `,
         q` plot = plot + facet_wrap( ~ Speciation, nrow = 2)`,
         q` plot = plot + scale_y_continuous(label = scientific_10) `,
@@ -230,10 +191,10 @@ $R->run(q` plot = ggplot(data = data, aes(x = Time, y = Rate, fill = Group)) `,
         q` plot = plot + theme(axis.text.y = element_text(size = 140))`,
         q` plot = plot + theme(axis.title.y = element_text(size = 200))`,
         q` plot = plot + theme(legend.title = element_blank(), legend.key.size = unit(7, "cm"), legend.text = element_text(size = 140, face = "bold"), legend.key = element_blank()) `, 
-        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(levels(data$Group))) `,
+        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(levels(data$Ether))) `,
 );
 
-$R->run(q` CairoPDF(file = "MCM_Ox_budget_by_group.pdf", width = 200, height = 141) `,
+$R->run(q` CairoPDF(file = "MCM_Ox_budget_ethers.pdf", width = 200, height = 141) `,
         q` print(plot) `,
         q` dev.off() `,
 );

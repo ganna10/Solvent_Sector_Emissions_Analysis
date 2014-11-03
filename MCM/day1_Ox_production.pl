@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
-# allocate Ox production from tagged MCM runs to parent VOCs functional groups
-# Version 0: Jane Coates 1/11/2014
+# allocate day1 Ox production from tagged MCM runs to parent VOCs functional groups
+# Version 0: Jane Coates 3/11/2014
 
 use strict;
 use diagnostics;
@@ -179,8 +179,14 @@ foreach my $run (sort keys %production_rates) {
         my $reshape = $production_rates{$run}{"Ox"}{$_}->copy->reshape($n_per_day, $n_days);
         my $integrate = $reshape->sumover;
         $integrate = $integrate(0:13:2);
-        $plot_data{$run}{$_} = $integrate;
+        $plot_data{$run}{$_} = $integrate->at(0);
     }
+}
+
+foreach my $gp (keys %plot_data) {
+    my $total = 0;
+    $total += $plot_data{$gp}{$_} foreach (keys %{$plot_data{$gp}}) ; 
+    $plot_data{$gp}{$_} /= $total foreach (keys %{$plot_data{$gp}}) ; 
 }
 
 my $R = Statistics::R->new();
@@ -191,49 +197,44 @@ $R->run(q` library(Cairo) `);
 $R->run(q` library(grid) `);
 $R->run(q` library(plyr) `);
 
-my @days = ("Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7");
-$R->set('Time', [@days]);
 $R->run(q` data = data.frame() `);
-foreach my $run (keys %plot_data) {
-    $R->run(q` pre = data.frame(Time) `);
-    foreach my $group (sort keys %{$plot_data{$run}}) {
+foreach my $speciation (keys %plot_data) {
+    $R->run(q` pre = data.frame(Dummy = c(1)) `);
+    foreach my $group (sort keys %{$plot_data{$speciation}}) {
         $R->set('group', $group);
-        $R->set('rate', [map { $_ } $plot_data{$run}{$group}->dog]);
-        $R->run(q` pre[group] = rate `);
+        $R->set('ratio', [map { $_ } $plot_data{$speciation}{$group}]);
+        $R->run(q` pre[group] = ratio `);
     }
-    $R->set('speciation', $run);
-    $R->run(q` pre$Speciation = rep(speciation, length(Time)) `,
-            q` pre = melt(pre, id.vars = c("Time", "Speciation"), variable.name = "Group", value.name = "Rate") `,
+    $R->set('speciation', $speciation);
+    $R->run(q` pre$Speciation = rep(speciation, length(group)) `,
+            q` pre = melt(pre, id.vars = c("Dummy", "Speciation"), variable.name = "Group", value.name = "Ratio") `,
+            q` pre = pre[,-1] `,
             q` data = rbind(data, pre) `,
     );
 }
-$R->run(q` scientific_10 <- function(x) { parse(text=gsub("e", " %*% 10^", scientific_format()(x))) } `, #scientific label format for y-axis
-        q` my.colours = c( "Alkanes" = "#6c254f", "Alkenes" = "#f9c500", "Aromatics" = "#0e5628", "Carbonyls" = "#ef6638", "Inorganic" = "#2b9eb3", "Alcohols" = "#b569b3", "Acids" = "#0c3f78", "Alkynes" = "#6db875", "Chlorinated" = "#898989", "Esters" = "#000000", "Ethers" = "#c65d6c") `,
-        q` data$Group = factor(data$Group, levels = c("Alkanes", "Alkenes", "Aromatics", "Carbonyls", "Alcohols", "Acids", "Alkynes", "Ethers", "Esters", "Chlorinated", "Inorganic")) `,
-        q` data = ddply(data, .(Group)) `,
-);
 #my $p = $R->run(q` print(data) `);
 #print "$p\n";
 
-$R->run(q` plot = ggplot(data = data, aes(x = Time, y = Rate, fill = Group)) `,
-        q` plot = plot + geom_bar(stat = "identity") `,
+$R->run(q` plot = ggplot(data = data, aes(x = Group, y = Ratio)) `,
         q` plot = plot + facet_wrap( ~ Speciation, nrow = 2)`,
-        q` plot = plot + scale_y_continuous(label = scientific_10) `,
-        q` plot = plot + ylab(expression(bold(paste(O[x], " Production Rate (molecules ", cm^-3, s^-1, ")")))) `,
+        q` plot = plot + coord_flip() `,
+        q` plot = plot + geom_bar(stat = "identity", width = 0.5) `,
+        q` plot = plot + scale_y_continuous(labels = percent) `,
+        q` plot = plot + scale_x_discrete(limits = rev(c("Alkanes", "Alkenes", "Aromatics", "Carbonyls", "Alcohols", "Acids", "Alkynes", "Esters", "Ethers", "Chlorinated", "Inorganic"))) `,
+        q` plot = plot + ylab("\nPercentage of First Day Ox Production\n") `,
         q` plot = plot + xlab("\n") `,
         q` plot = plot + theme_bw() `,
         q` plot = plot + theme(strip.text = element_text(size = 200, face = "bold")) `,
         q` plot = plot + theme(strip.background = element_blank()) `,
         q` plot = plot + theme(panel.grid.major = element_blank()) `,
         q` plot = plot + theme(panel.grid.minor = element_blank()) `,
-        q` plot = plot + theme(axis.text.x = element_text(size = 140)) `,
-        q` plot = plot + theme(axis.text.y = element_text(size = 140))`,
-        q` plot = plot + theme(axis.title.y = element_text(size = 200))`,
+        q` plot = plot + theme(axis.text.y = element_text(size = 180)) `,
+        q` plot = plot + theme(axis.text.x = element_text(size = 160))`,
+        q` plot = plot + theme(axis.title.x = element_text(size = 200, face = "bold"))`,
         q` plot = plot + theme(legend.title = element_blank(), legend.key.size = unit(7, "cm"), legend.text = element_text(size = 140, face = "bold"), legend.key = element_blank()) `, 
-        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(levels(data$Group))) `,
 );
 
-$R->run(q` CairoPDF(file = "MCM_Ox_budget_by_group.pdf", width = 200, height = 141) `,
+$R->run(q` CairoPDF(file = "MCM_day1_Ox_budget_by_group.pdf", width = 200, height = 141) `,
         q` print(plot) `,
         q` dev.off() `,
 );
