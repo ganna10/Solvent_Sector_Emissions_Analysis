@@ -154,6 +154,7 @@ $R->run(q` library(reshape2) `);
 $R->run(q` library(scales) `);
 $R->run(q` library(Cairo) `);
 $R->run(q` library(grid) `);
+$R->run(q` library(plyr) `);
 
 my @days = ("Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7");
 $R->set('Time', [@days]);
@@ -174,8 +175,9 @@ foreach my $run (keys %plot_data) {
 #my $p = $R->run(q` print(data) `);
 #print "$p\n";
 $R->run(q` scientific_10 <- function(x) { parse(text=gsub("e", " %*% 10^", scientific_format()(x))) } `, #scientific label format for y-axis
-        q` my.colours = c( "C2H6" = "#6c254f", "C3H8" = "#f9c500", "CHEX" = "#0e5628", "IC4H10" = "#ef6638", "IC5H12" = "#2b9eb3", "M2HEX" = "#b569b3", "M2PE" = "#0c3f78", "M3HEX" = "#6db875", "M3PE" = "#898989", "NC10H22" = "#000000", "NC11H24" = "#c65d6c", "NC12H26" = "#696537", "NC4H10" = "#86b650", "NC5H12" = "#76afca", "NC6H14" = "#dc3522", "NC7H16" = "#8c6238", "NC8H18" = "#9bb08f", "NC9H20" = "#8b1537", "NEOP" = "#ba8b01", "CH4" = "#0352cb") `,
-        q` my.names = c("CH4", "C2H6", "C3H8", "NC4H10", "IC4H10", "NC5H12", "IC5H12", "NEOP", "NC6H14", "M2PE", "M3PE", "NC7H16", "M2HEX", "M3HEX", "NC8H18", "NC9H20", "NC10H22", "NC11H24", "NC12H26", "CHEX" ) `,
+        q` my.colours = c( "CH4" = "#6c254f", "C2H6" = "#f9c500", "C3H8" = "#0e5628", "NC4H10" = "#ef6638", "IC4H10" = "#2b9eb3", "NC5H12" = "#b569b3", "IC5H12" = "#0c3f78", "NEOP" = "#6db875", "NC6H14" = "#898989", "M2PE" = "#000000", "M3PE" = "#c65d6c", "M2HEX" = "#696537", "M3HEX" = "#86b650", "NC7H16" = "#76afca", "NC8H18" = "#dc3522", "NC9H20" = "#8c6238", "NC10H22" = "#9bb08f", "NC11H24" = "#8b1537", "NC12H26" = "#ba8b01", "CHEX" = "#0352cb") `,
+        q` data$Alkane = factor(data$Alkane, levels = c("CH4", "C2H6", "C3H8", "NC4H10", "IC4H10", "NC5H12", "IC5H12", "NEOP", "NC6H14", "M2PE", "M3PE", "M2HEX", "M3HEX", "NC7H16", "NC8H18", "NC9H20", "NC10H22", "NC11H24", "NC12H26", "CHEX" )) `,
+        q` data = ddply(data, .(Alkane)) `,
 );
 
 $R->run(q` plot = ggplot(data = data, aes(x = Time, y = Rate, fill = Alkane)) `,
@@ -193,7 +195,7 @@ $R->run(q` plot = ggplot(data = data, aes(x = Time, y = Rate, fill = Alkane)) `,
         q` plot = plot + theme(axis.text.y = element_text(size = 140))`,
         q` plot = plot + theme(axis.title.y = element_text(size = 200))`,
         q` plot = plot + theme(legend.title = element_blank(), legend.key.size = unit(7, "cm"), legend.text = element_text(size = 140, face = "bold"), legend.key = element_blank()) `, 
-        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(my.names)) `,
+        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(levels(data$Alkane))) `,
 );
 
 $R->run(q` CairoPDF(file = "MCM_Ox_budget_alkanes.pdf", width = 200, height = 141) `,

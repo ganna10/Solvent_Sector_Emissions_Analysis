@@ -150,6 +150,7 @@ $R->run(q` library(reshape2) `);
 $R->run(q` library(scales) `);
 $R->run(q` library(Cairo) `);
 $R->run(q` library(grid) `);
+$R->run(q` library(plyr) `);
 
 my @days = ("Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7");
 $R->set('Time', [@days]);
@@ -171,7 +172,8 @@ foreach my $run (keys %plot_data) {
 #print "$p\n";
 $R->run(q` scientific_10 <- function(x) { parse(text=gsub("e", " %*% 10^", scientific_format()(x))) } `, #scientific label format for y-axis
         q` my.colours = c( "C2H4" = "#6c254f", "C3H6" = "#f9c500", "BUT1ENE" = "#0e5628", "C5H8" = "#ef6638", "LIMONENE" = "#2b9eb3", "APINENE" = "#b569b3", "BPINENE" = "#0c3f78") `,
-        q` my.names = c("C2H4", "C3H6", "BUT1ENE", "C5H8", "APINENE", "BPINENE", "LIMONENE" ) `,
+        q` data$Alkene = factor(data$Alkene, levels = c("C2H4", "C3H6", "BUT1ENE", "C5H8", "APINENE", "BPINENE", "LIMONENE" )) `,
+        q` data = ddply(data, .(Alkene)) `,
 );
 
 $R->run(q` plot = ggplot(data = data, aes(x = Time, y = Rate, fill = Alkene)) `,
@@ -189,7 +191,7 @@ $R->run(q` plot = ggplot(data = data, aes(x = Time, y = Rate, fill = Alkene)) `,
         q` plot = plot + theme(axis.text.y = element_text(size = 140))`,
         q` plot = plot + theme(axis.title.y = element_text(size = 200))`,
         q` plot = plot + theme(legend.title = element_blank(), legend.key.size = unit(7, "cm"), legend.text = element_text(size = 140, face = "bold"), legend.key = element_blank()) `, 
-        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(my.names)) `,
+        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(levels(data$Alkene))) `,
 );
 
 $R->run(q` CairoPDF(file = "MCM_Ox_budget_alkenes.pdf", width = 200, height = 141) `,

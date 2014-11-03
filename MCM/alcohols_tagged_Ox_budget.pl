@@ -150,6 +150,7 @@ $R->run(q` library(reshape2) `);
 $R->run(q` library(scales) `);
 $R->run(q` library(Cairo) `);
 $R->run(q` library(grid) `);
+$R->run(q` library(plyr) `);
 
 my @days = ("Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7");
 $R->set('Time', [@days]);
@@ -170,8 +171,9 @@ foreach my $run (keys %plot_data) {
 #my $p = $R->run(q` print(data) `);
 #print "$p\n";
 $R->run(q` scientific_10 <- function(x) { parse(text=gsub("e", " %*% 10^", scientific_format()(x))) } `, #scientific label format for y-axis
-        q` my.colours = c( "BUT2OL" = "#6c254f", "C2H5OH" = "#f9c500", "C6H5CH2OH" = "#0e5628", "ETHGLY" = "#ef6638", "IBUTOL" = "#2b9eb3", "IPROPOL" = "#b569b3", "MIBKAOH" = "#0c3f78", "NBUTOL" = "#6db875", "NPROPOL" = "#898989", "PROPGLY" = "#000000") `,
-        q` my.names = c("C2H5OH", "NPROPOL", "IPROPOL", "NBUTOL", "BUT2OL", "IBUTOL", "MIBKAOH", "C6H5CH2OH", "ETHGLY", "PROPGLY" ) `,
+        q` my.colours = c( "CH3OH" = "#6c254f", "C2H5OH" = "#f9c500", "NPROPOL" = "#0e5628", "IPROPOL" = "#ef6638", "NBUTOL" = "#2b9eb3", "BUT2OL" = "#b569b3", "IBUTOL" = "#0c3f78", "MIBKAOH" = "#6db875", "C6H5CH2OH" = "#898989", "ETHGLY" = "#000000", "PROPGLY" = "#c65d6c") `,
+        q` data$Alcohol = factor(data$Alcohol, levels = c("CH3OH", "C2H5OH", "NPROPOL", "IPROPOL", "NBUTOL", "BUT2OL", "IBUTOL", "MIBKAOH", "C6H5CH2OH", "ETHGLY", "PROPGLY" )) `,
+        q` data = ddply(data, .(Alcohol)) `,
 );
 
 $R->run(q` plot = ggplot(data = data, aes(x = Time, y = Rate, fill = Alcohol)) `,
@@ -189,7 +191,7 @@ $R->run(q` plot = ggplot(data = data, aes(x = Time, y = Rate, fill = Alcohol)) `
         q` plot = plot + theme(axis.text.y = element_text(size = 140))`,
         q` plot = plot + theme(axis.title.y = element_text(size = 200))`,
         q` plot = plot + theme(legend.title = element_blank(), legend.key.size = unit(7, "cm"), legend.text = element_text(size = 140, face = "bold"), legend.key = element_blank()) `, 
-        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(my.names)) `,
+        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(levels(data$Alcohol))) `,
 );
 
 $R->run(q` CairoPDF(file = "MCM_Ox_budget_alcohols.pdf", width = 200, height = 141) `,

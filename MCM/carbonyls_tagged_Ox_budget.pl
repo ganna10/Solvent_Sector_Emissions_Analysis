@@ -150,6 +150,7 @@ $R->run(q` library(reshape2) `);
 $R->run(q` library(scales) `);
 $R->run(q` library(Cairo) `);
 $R->run(q` library(grid) `);
+$R->run(q` library(plyr) `);
 
 my @days = ("Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7");
 $R->set('Time', [@days]);
@@ -170,8 +171,9 @@ foreach my $run (keys %plot_data) {
 #my $p = $R->run(q` print(data) `);
 #print "$p\n";
 $R->run(q` scientific_10 <- function(x) { parse(text=gsub("e", " %*% 10^", scientific_format()(x))) } `, #scientific label format for y-axis
-        q` my.colours = c( "ACR" = "#6c254f", "C2H5CHO" = "#f9c500", "C3H7CHO" = "#0e5628", "C4ALDB" = "#ef6638", "CH3CHO" = "#2b9eb3", "CH3COCH3" = "#b569b3", "CYHEXONE" = "#0c3f78", "HCHO" = "#6db875", "IPRCHO" = "#898989", "MACR" = "#000000", "MEK" = "#c65d6c", "MIBK" = "#696537", "C4H9CHO" = "#0352cb") `,
-        q` my.names = c("HCHO", "CH3CHO", "C2H5CHO", "C3H7CHO", "IPRCHO", "C4H9CHO", "C4ALDB", "CH3COCH3", "MEK", "MIBK", "ACR", "MACR", "CYHEXONE") `,
+        q` my.colours = c( "HCHO" = "#6c254f", "CH3CHO" = "#f9c500", "C2H5CHO" = "#0e5628", "C3H7CHO" = "#ef6638", "IPRCHO" = "#2b9eb3", "C4H9CHO" = "#b569b3", "ACR" = "#0c3f78", "MACR" = "#6db875", "C4ALDB" = "#898989", "CH3COCH3" = "#000000", "MEK" = "#c65d6c", "MIBK" = "#696537", "CYHEXONE" = "#0352cb") `,
+        q` data$Carbonyl = factor(data$Carbonyl, levels = c("HCHO", "CH3CHO", "C2H5CHO", "C3H7CHO", "IPRCHO", "C4H9CHO", "ACR", "MACR", "C4ALDB", "CH3COCH3", "MEK", "MIBK", "CYHEXONE")) `,
+        q` data = ddply(data, .(Carbonyl)) `,
 );
 
 $R->run(q` plot = ggplot(data = data, aes(x = Time, y = Rate, fill = Carbonyl)) `,
@@ -189,7 +191,7 @@ $R->run(q` plot = ggplot(data = data, aes(x = Time, y = Rate, fill = Carbonyl)) 
         q` plot = plot + theme(axis.text.y = element_text(size = 140))`,
         q` plot = plot + theme(axis.title.y = element_text(size = 200))`,
         q` plot = plot + theme(legend.title = element_blank(), legend.key.size = unit(7, "cm"), legend.text = element_text(size = 140, face = "bold"), legend.key = element_blank()) `, 
-        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(my.names)) `,
+        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(levels(data$Carbonyl))) `,
 );
 
 $R->run(q` CairoPDF(file = "MCM_Ox_budget_carbonyls.pdf", width = 200, height = 141) `,

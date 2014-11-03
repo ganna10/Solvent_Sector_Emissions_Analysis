@@ -150,6 +150,7 @@ $R->run(q` library(reshape2) `);
 $R->run(q` library(scales) `);
 $R->run(q` library(Cairo) `);
 $R->run(q` library(grid) `);
+$R->run(q` library(plyr) `);
 
 my @days = ("Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7");
 $R->set('Time', [@days]);
@@ -170,8 +171,9 @@ foreach my $run (keys %plot_data) {
 #my $p = $R->run(q` print(data) `);
 #print "$p\n";
 $R->run(q` scientific_10 <- function(x) { parse(text=gsub("e", " %*% 10^", scientific_format()(x))) } `, #scientific label format for y-axis
-        q` my.colours = c( "CH3CO2H" = "#6c254f", "CH3OH" = "#f9c500", "HCOOH" = "#0e5628", "PROPACID" = "#ef6638") `,
-        q` my.names = c("HCOOH", "CH3CO2H", "PROPACID", "CH3OH" ) `,
+        q` my.colours = c( "HCOOH" = "#6c254f", "CH3CO2H" = "#0e5628", "PROPACID" = "#ef6638") `,
+        q` data$Acid = factor(data$Acid, levels = c("HCOOH", "CH3CO2H", "PROPACID" )) `,
+        q` data = ddply(data, .(Acid)) `,
 );
 
 $R->run(q` plot = ggplot(data = data, aes(x = Time, y = Rate, fill = Acid)) `,
@@ -189,7 +191,7 @@ $R->run(q` plot = ggplot(data = data, aes(x = Time, y = Rate, fill = Acid)) `,
         q` plot = plot + theme(axis.text.y = element_text(size = 140))`,
         q` plot = plot + theme(axis.title.y = element_text(size = 200))`,
         q` plot = plot + theme(legend.title = element_blank(), legend.key.size = unit(7, "cm"), legend.text = element_text(size = 140, face = "bold"), legend.key = element_blank()) `, 
-        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(my.names)) `,
+        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(levels(data$Acid))) `,
 );
 
 $R->run(q` CairoPDF(file = "MCM_Ox_budget_acids.pdf", width = 200, height = 141) `,
