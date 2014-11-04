@@ -165,8 +165,7 @@ foreach my $run (sort keys %production_rates) {
     foreach my $reaction (sort keys %{$production_rates{$run}{'Ox'}}) { #average out data that comes from all the tagged runs such as CH4, CO etc
         next unless ($reaction eq 'CH4' or $reaction =~ / \+ /) ;
         if ($reaction eq "CH4") {
-            $production_rates{$run}{'Ox'}{'Alkanes'} = $production_rates{$run}{'Ox'}{'Alkanes'} + ( $production_rates{$run}{'Ox'}{'CH4'} / get_number_of_tagged_runs($run) );
-            delete $production_rates{$run}{'Ox'}{$reaction};
+            $production_rates{$run}{'Ox'}{$reaction} /= get_number_of_tagged_runs($run) ;
         } elsif ($reaction =~ / \+ /) {
             $production_rates{$run}{'Ox'}{'Inorganic'} = $production_rates{$run}{'Ox'}{'Inorganic'} + ( $production_rates{$run}{'Ox'}{$reaction} / get_number_of_tagged_runs($run) );
             delete $production_rates{$run}{'Ox'}{$reaction};
