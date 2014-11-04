@@ -21,7 +21,7 @@ my $dt = $mecca->dt->at(0);
 my $n_per_day = 43200 / $dt;
 my $n_days = int ($NTIME / $n_per_day);
 
-my @alkanes = qw( CH4 ETH HC3 HC5 HC8 );
+my @alkanes = qw( ETH HC3 HC5 HC8 );
 my @alkenes = qw( OL2 OLT OLI ISO );
 my @aromatics = qw( TOL XYL );
 my @carbonyls = qw( KET HCHO ALD );
@@ -68,7 +68,7 @@ foreach my $run (@tagged_runs) {
             if (defined $parent) { # for tagged reactions
                 if ($parent ~~ @alkanes) {
                     $string = $parent;
-                } elsif ($parent ~~ @alkenes or $parent ~~ @aromatics or $parent ~~ @carbonyls) {
+                } elsif ($parent eq "CH4" or $parent ~~ @alkenes or $parent ~~ @aromatics or $parent ~~ @carbonyls) {
                     next;
                 } else {
                     print "No group found for $parent\n";
@@ -89,7 +89,7 @@ foreach my $run (@tagged_runs) {
             if (defined $parent) { # for tagged reactions
                 if ($parent ~~ @alkanes) {
                     $string = $parent;
-                } elsif ($parent ~~ @alkenes or $parent ~~ @aromatics or $parent ~~ @carbonyls) {
+                } elsif ($parent eq "CH4" or $parent ~~ @alkenes or $parent ~~ @aromatics or $parent ~~ @carbonyls) {
                     next;
                 } else {
                     print "No group found for $parent\n";
@@ -154,9 +154,9 @@ foreach my $speciation (keys %plot_data) {
     );
 }
 
-$R->run(q` my.colours = c( "CH4" = "#6c254f", "ETH" = "#f9c500", "HC3" = "#0e5628", "HC5" = "#ef6638", "HC8" = "#2b9eb3") `,
+$R->run(q` my.colours = c( "ETH" = "#6c254f", "HC3" = "#f9c500", "HC5" = "#0e5628", "HC8" = "#ef6638") `,
         q` scientific_10 <- function(x) { parse(text=gsub("e", " %*% 10^", scientific_format()(x))) } `, #scientific label format for y-axis
-        q` data$Alkane = factor(data$Alkane, levels = rev(c("CH4", "ETH", "HC3", "HC5", "HC5"))) `,
+        q` data$Alkane = factor(data$Alkane, levels = rev(c("ETH", "HC3", "HC5", "HC8"))) `,
 );
 #my $p = $R->run(q` print(data) `);
 #print $p, "\n";

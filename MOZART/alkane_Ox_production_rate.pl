@@ -1,7 +1,6 @@
 #! /usr/bin/env perl
 # allocate alkane Ox production from tagged MOZART runs to VOC 
 # Version 0: Jane Coates 1/11/2014
-#### to do change plot levels
 
 use strict;
 use diagnostics;
@@ -22,7 +21,7 @@ my $dt = $mecca->dt->at(0);
 my $n_per_day = 43200 / $dt;
 my $n_days = int ($NTIME / $n_per_day);
 
-my @alkanes = qw( CH4 C2H6 C3H8 BIGALK );
+my @alkanes = qw( C2H6 C3H8 BIGALK );
 my @alkenes = qw( C2H4 C3H6 BIGENE ISOP C10H16 );
 my @aromatics = qw( TOLUENE );
 my @carbonyls = qw( CH2O CH3CHO MEK CH3COCH3 MACR );
@@ -72,7 +71,7 @@ foreach my $run (@tagged_runs) {
             if (defined $parent) { # for tagged reactions
                 if ($parent ~~ @alkanes) {
                     $string = $parent;
-                } elsif ($parent ~~ @alkenes or $parent ~~ @aromatics or $parent ~~ @carbonyls or $parent ~~ @alcohols or $parent ~~ @acids or $parent ~~ @alkynes) {
+                } elsif ($parent eq "CH4" or $parent ~~ @alkenes or $parent ~~ @aromatics or $parent ~~ @carbonyls or $parent ~~ @alcohols or $parent ~~ @acids or $parent ~~ @alkynes) {
                     next;
                 } else {
                     print "No group found for $parent\n";
@@ -93,7 +92,7 @@ foreach my $run (@tagged_runs) {
             if (defined $parent) { # for tagged reactions
                 if ($parent ~~ @alkanes) {
                     $string = $parent;
-                } elsif ($parent ~~ @alkenes or $parent ~~ @aromatics or $parent ~~ @carbonyls or $parent ~~ @alcohols or $parent ~~ @acids or $parent ~~ @alkynes) {
+                } elsif ($parent eq "CH4" or $parent ~~ @alkenes or $parent ~~ @aromatics or $parent ~~ @carbonyls or $parent ~~ @alcohols or $parent ~~ @acids or $parent ~~ @alkynes) {
                     next;
                 } else {
                     print "No group found for $parent\n";
@@ -139,6 +138,7 @@ $R->run(q` library(reshape2) `);
 $R->run(q` library(Cairo) `);
 $R->run(q` library(grid) `);
 $R->run(q` library(scales) `);
+$R->run(q` library(plyr) `);
 
 my @days = ("Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7");
 $R->set('time', [@days]);
@@ -158,9 +158,10 @@ foreach my $speciation (keys %plot_data) {
     );
 }
 
-$R->run(q` my.colours = c( "CH4" = "#6c254f", "C2H6" = "#f9c500", "C3H8" = "#0e5628", "BIGALK" = "#ef6638") `,
+$R->run(q` my.colours = c( "C2H6" = "#6c254f", "C3H8" = "#f9c500", "BIGALK" = "#0e5628") `,
         q` scientific_10 <- function(x) { parse(text=gsub("e", " %*% 10^", scientific_format()(x))) } `, #scientific label format for y-axis
-        q` data$Alkane = factor(data$Alkane, levels = rev(c("CH4", "C2H6", "C3H8", "BIGALK"))) `,
+        q` data$Alkane = factor(data$Alkane, levels = c("C2H6", "C3H8", "BIGALK")) `,
+        q` data = ddply(data, .(Alkane)) `,
 );
 #my $p = $R->run(q` print(data) `);
 #print $p, "\n";
@@ -180,7 +181,7 @@ $R->run(q` plot = ggplot(data = data, aes(x = time, y = Rate, fill = Alkane)) `,
         q` plot = plot + theme(axis.text.y = element_text(size = 140))`,
         q` plot = plot + theme(axis.title.y = element_text(size = 200))`,
         q` plot = plot + theme(legend.title = element_blank(), legend.key.size = unit(7, "cm"), legend.text = element_text(size = 140, face = "bold"), legend.key = element_blank()) `, 
-        q` plot = plot + scale_fill_manual(values = my.colours) `,
+        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(levels(data$Alkane))) `,
 );
 
 $R->run(q` CairoPDF(file = "MOZART_alkanes_Ox_budget.pdf", width = 200, height = 141) `,

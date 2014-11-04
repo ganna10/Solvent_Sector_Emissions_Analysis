@@ -77,9 +77,7 @@ foreach my $run (@tagged_runs) {
             if (defined $parent) { # for tagged reactions
                 if ($parent ~~ @alkanes) {
                     $string = $parent;
-                } elsif ($parent eq "CH4") {
-                    $string = $parent;
-                } elsif ($parent ~~ @alkenes or $parent ~~ @aromatics or $parent ~~ @alcohols or $parent ~~ @carbonyls or $parent ~~ @acids or $parent ~~ @esters or $parent ~~ @ethers or $parent ~~ @alkynes or $parent ~~ @chlorinated ) {
+                } elsif ($parent eq "CH4" or $parent ~~ @alkenes or $parent ~~ @aromatics or $parent ~~ @alcohols or $parent ~~ @carbonyls or $parent ~~ @acids or $parent ~~ @esters or $parent ~~ @ethers or $parent ~~ @alkynes or $parent ~~ @chlorinated ) {
                     next;
                 } else {
                     print "Nothing found for $parent\n";
@@ -101,9 +99,7 @@ foreach my $run (@tagged_runs) {
             if (defined $parent) { # for tagged reactions
                 if ($parent ~~ @alkanes) {
                     $string = $parent;
-                } elsif ($parent eq "CH4") {
-                    $string = $parent;
-                } elsif ($parent ~~ @alkenes or $parent ~~ @aromatics or $parent ~~ @alcohols or $parent ~~ @carbonyls or $parent ~~ @acids or $parent ~~ @esters or $parent ~~ @ethers or $parent ~~ @alkynes or $parent ~~ @chlorinated ) {
+                } elsif ($parent eq "CH4" or $parent ~~ @alkenes or $parent ~~ @aromatics or $parent ~~ @alcohols or $parent ~~ @carbonyls or $parent ~~ @acids or $parent ~~ @esters or $parent ~~ @ethers or $parent ~~ @alkynes or $parent ~~ @chlorinated ) {
                     next;
                 } else {
                     print "Nothing found for $parent\n";
@@ -131,9 +127,7 @@ foreach my $run (@tagged_runs) {
 
 foreach my $run (sort keys %production_rates) { 
     foreach my $reaction (sort keys %{$production_rates{$run}{'Ox'}}) { #average out data that comes from all the tagged runs such as CH4, CO etc
-        if ($reaction eq 'CH4') {
-            $production_rates{$run}{'Ox'}{$reaction} /= get_number_of_tagged_runs($run);
-        } elsif ($reaction =~ /\+/) {
+        if ($reaction eq 'CH4' or $reaction =~ /\+/) {
             delete $production_rates{$run}{"Ox"}{$reaction};
         }
     }
@@ -175,8 +169,8 @@ foreach my $run (keys %plot_data) {
 #my $p = $R->run(q` print(data) `);
 #print "$p\n";
 $R->run(q` scientific_10 <- function(x) { parse(text=gsub("e", " %*% 10^", scientific_format()(x))) } `, #scientific label format for y-axis
-        q` my.colours = c( "CH4" = "#6c254f", "C2H6" = "#f9c500", "C3H8" = "#0e5628", "NC4H10" = "#ef6638", "IC4H10" = "#2b9eb3", "NC5H12" = "#b569b3", "IC5H12" = "#0c3f78", "NEOP" = "#6db875", "NC6H14" = "#898989", "M2PE" = "#000000", "M3PE" = "#c65d6c", "M2HEX" = "#696537", "M3HEX" = "#86b650", "NC7H16" = "#76afca", "NC8H18" = "#dc3522", "NC9H20" = "#8c6238", "NC10H22" = "#9bb08f", "NC11H24" = "#8b1537", "NC12H26" = "#ba8b01", "CHEX" = "#0352cb") `,
-        q` data$Alkane = factor(data$Alkane, levels = c("CH4", "C2H6", "C3H8", "NC4H10", "IC4H10", "NC5H12", "IC5H12", "NEOP", "NC6H14", "M2PE", "M3PE", "M2HEX", "M3HEX", "NC7H16", "NC8H18", "NC9H20", "NC10H22", "NC11H24", "NC12H26", "CHEX" )) `,
+        q` my.colours = c( "C2H6" = "#6c254f", "C3H8" = "#f9c500", "NC4H10" = "#0e5628", "IC4H10" = "#ef6638", "NC5H12" = "#2b9eb3", "IC5H12" = "#b569b3", "NEOP" = "#0c3f78", "NC6H14" = "#6db875", "M2PE" = "#898989", "M3PE" = "#000000", "M2HEX" = "#c65d6c", "M3HEX" = "#696537", "NC7H16" = "#86b650", "NC8H18" = "#76afca", "NC9H20" = "#dc3522", "NC10H22" = "#8c6238", "NC11H24" = "#9bb08f", "NC12H26" = "#8b1537", "CHEX" = "#ba8b01") `,
+        q` data$Alkane = factor(data$Alkane, levels = c("C2H6", "C3H8", "NC4H10", "IC4H10", "NC5H12", "IC5H12", "NEOP", "NC6H14", "M2PE", "M3PE", "M2HEX", "M3HEX", "NC7H16", "NC8H18", "NC9H20", "NC10H22", "NC11H24", "NC12H26", "CHEX" )) `,
         q` data = ddply(data, .(Alkane)) `,
 );
 
