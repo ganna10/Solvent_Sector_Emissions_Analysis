@@ -19,7 +19,7 @@ my $mecca = MECCA->new("$base_dir/DE94_tagged_solvents_only/boxmodel");
 my $NTIME = $mecca->time->nelem;
 my $dt = $mecca->dt->at(0); 
 
-my @alkanes = qw( CH4 C2H6 C3H8 BIGALK );
+my @alkanes = qw( C2H6 C3H8 BIGALK );
 my @alkenes = qw( C2H4 C3H6 BIGENE ISOP C10H16 );
 my @aromatics = qw( TOLUENE );
 my @carbonyls = qw( CH2O CH3CHO MEK CH3COCH3 MACR );
@@ -81,6 +81,8 @@ foreach my $run (@tagged_runs) {
                     $string = "Acids";
                 } elsif ($parent ~~ @alkynes) {
                     $string = "Alkynes";
+                } elsif ($parent eq "CH4") {
+                    $string = $parent;
                 } else {
                     print "No group found for $parent\n";
                 }
@@ -112,6 +114,8 @@ foreach my $run (@tagged_runs) {
                     $string = "Acids";
                 } elsif ($parent ~~ @alkynes) {
                     $string = "Alkynes";
+                } elsif ($parent eq "CH4") {
+                    $string = $parent;
                 } else {
                     print "No group found for $parent\n";
                 }
@@ -183,7 +187,7 @@ $R->run(q` plot = ggplot(data = data, aes(x = Group, y = Ratio)) `,
         q` plot = plot + coord_flip() `,
         q` plot = plot + geom_bar(stat = "identity", width = 0.5) `,
         q` plot = plot + scale_y_continuous(labels = percent) `,
-        q` plot = plot + scale_x_discrete(limits = rev(c("Alkanes", "Alkenes", "Aromatics", "Carbonyls", "Alcohols", "Acids", "Alkynes", "Inorganic"))) `,
+        q` plot = plot + scale_x_discrete(limits = rev(c("CH4", "Inorganic", "Alkanes", "Alkenes", "Aromatics", "Carbonyls", "Alcohols", "Acids", "Alkynes"))) `,
         q` plot = plot + ylab("\nPercentage of Total Cumulative Ox Production\n") `,
         q` plot = plot + xlab("\n") `,
         q` plot = plot + theme_bw() `,

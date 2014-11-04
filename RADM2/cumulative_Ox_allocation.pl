@@ -19,7 +19,7 @@ my $mecca = MECCA->new("$base_dir/DE94_tagged_solvents_only/boxmodel");
 my $NTIME = $mecca->time->nelem;
 my $dt = $mecca->dt->at(0); 
 
-my @alkanes = qw( CH4 ETH HC3 HC5 HC8 );
+my @alkanes = qw( ETH HC3 HC5 HC8 );
 my @alkenes = qw( OL2 OLT OLI ISO );
 my @aromatics = qw( TOL XYL );
 my @carbonyls = qw( KET HCHO ALD );
@@ -72,6 +72,8 @@ foreach my $run (@tagged_runs) {
                     $string = "Aromatics";
                 } elsif ($parent ~~ @carbonyls) {
                     $string = "Carbonyls";
+                } elsif ($parent eq "CH4") {
+                    $string = $parent;
                 } else {
                     print "No group found for $parent\n";
                 }
@@ -97,6 +99,8 @@ foreach my $run (@tagged_runs) {
                     $string = "Aromatics";
                 } elsif ($parent ~~ @carbonyls) {
                     $string = "Carbonyls";
+                } elsif ($parent eq "CH4") {
+                    $string = $parent;
                 } else {
                     print "No group found for $parent\n";
                 }
@@ -168,7 +172,7 @@ $R->run(q` plot = ggplot(data = data, aes(x = Group, y = Ratio)) `,
         q` plot = plot + coord_flip() `,
         q` plot = plot + geom_bar(stat = "identity", width = 0.5) `,
         q` plot = plot + scale_y_continuous(labels = percent) `,
-        q` plot = plot + scale_x_discrete(limits = rev(c("Alkanes", "Alkenes", "Aromatics", "Carbonyls", "Inorganic"))) `,
+        q` plot = plot + scale_x_discrete(limits = rev(c("CH4", "Inorganic",  "Alkanes", "Alkenes", "Aromatics", "Carbonyls"))) `,
         q` plot = plot + ylab("\nPercentage of Total Cumulative Ox Production\n") `,
         q` plot = plot + xlab("\n") `,
         q` plot = plot + theme_bw() `,

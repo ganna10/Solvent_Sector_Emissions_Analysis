@@ -165,8 +165,7 @@ foreach my $run (sort keys %production_rates) {
     foreach my $reaction (sort keys %{$production_rates{$run}{'Ox'}}) { #average out data that comes from all the tagged runs such as CH4, CO etc
         next unless ($reaction eq 'CH4' or $reaction =~ / \+ /) ;
         if ($reaction eq "CH4") {
-            $production_rates{$run}{'Ox'}{'Alkanes'} = $production_rates{$run}{'Ox'}{'Alkanes'} + ( $production_rates{$run}{'Ox'}{'CH4'} / get_number_of_tagged_runs($run) );
-            delete $production_rates{$run}{'Ox'}{$reaction};
+            $production_rates{$run}{'Ox'}{'CH4'} /=  get_number_of_tagged_runs($run) ;
         } elsif ($reaction =~ / \+ /) {
             $production_rates{$run}{'Ox'}{'Inorganic'} = $production_rates{$run}{'Ox'}{'Inorganic'} + ( $production_rates{$run}{'Ox'}{$reaction} / get_number_of_tagged_runs($run) );
             delete $production_rates{$run}{'Ox'}{$reaction};
@@ -217,7 +216,7 @@ $R->run(q` plot = ggplot(data = data, aes(x = Group, y = Ratio)) `,
         q` plot = plot + coord_flip() `,
         q` plot = plot + geom_bar(stat = "identity", width = 0.5) `,
         q` plot = plot + scale_y_continuous(labels = percent) `,
-        q` plot = plot + scale_x_discrete(limits = rev(c("Alkanes", "Alkenes", "Aromatics", "Carbonyls", "Alcohols", "Acids", "Alkynes", "Esters", "Ethers", "Chlorinated", "Inorganic"))) `,
+        q` plot = plot + scale_x_discrete(limits = rev(c("CH4", "Inorganic", "Alkanes", "Alkenes", "Aromatics", "Carbonyls", "Alcohols", "Acids", "Alkynes", "Esters", "Ethers", "Chlorinated"))) `,
         q` plot = plot + ylab("\nPercentage of Total Cumulative Ox Production\n") `,
         q` plot = plot + xlab("\n") `,
         q` plot = plot + theme_bw() `,
