@@ -175,7 +175,7 @@ $R->run(q` plot = ggplot(data = data, aes(x = time, y = Rate, fill = Carbonyl)) 
         q` plot = plot + facet_wrap( ~ Speciation, nrow = 2)`,
         q` plot = plot + geom_bar(stat = "identity") `,
         q` plot = plot + scale_y_continuous(label = scientific_10) `,
-        q` plot = plot + ylab(expression(bold(paste(O[x], " Production Rate (molecules ", cm^-3, s^-1, ")")))) `,
+        q` plot = plot + ylab(expression(bold(paste("Normalised ",O[x], " Production Rate (molecules (Ox) / molecules (VOC) ", s^-1, ")")))) `,
         q` plot = plot + xlab("\n") `,
         q` plot = plot + theme_bw() `,
         q` plot = plot + theme(strip.text = element_text(size = 200, face = "bold")) `,
