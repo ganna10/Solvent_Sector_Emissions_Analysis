@@ -135,6 +135,7 @@ $R->run(q` library(reshape2) `);
 $R->run(q` library(Cairo) `);
 $R->run(q` library(grid) `);
 $R->run(q` library(scales) `);
+$R->run(q` library(plyr) `);
 
 my @days = ("Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7");
 $R->set('time', [@days]);
@@ -157,6 +158,8 @@ foreach my $speciation (keys %plot_data) {
 
 $R->run(q` my.colours = c( "TOL" = "#6c254f", "XYL" = "#0e5628") `,
         q` scientific_10 <- function(x) { parse(text=gsub("e", " %*% 10^", scientific_format()(x))) } `, #scientific label format for y-axis 
+        q` data$Aromatic = factor(data$Aromatic, levels = c("TOL", "XYL")) `,
+        q` data = ddply(data, .(Aromatic)) `,
 );
 #my $p = $R->run(q` print(data) `);
 #print $p, "\n";
@@ -176,7 +179,7 @@ $R->run(q` plot = ggplot(data = data, aes(x = time, y = Rate, fill = Aromatic)) 
         q` plot = plot + theme(axis.text.y = element_text(size = 140))`,
         q` plot = plot + theme(axis.title.y = element_text(size = 200))`,
         q` plot = plot + theme(legend.title = element_blank(), legend.key.size = unit(7, "cm"), legend.text = element_text(size = 140, face = "bold"), legend.key = element_blank()) `, 
-        q` plot = plot + scale_fill_manual(values = my.colours) `,
+        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(levels(data$Aromatic))) `,
 );
 
 $R->run(q` CairoPDF(file = "RADM2_aromatics_Ox_budget.pdf", width = 200, height = 141) `,

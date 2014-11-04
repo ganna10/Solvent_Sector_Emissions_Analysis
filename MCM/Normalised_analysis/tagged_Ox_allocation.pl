@@ -134,7 +134,6 @@ foreach my $run (qw(DE94_tagged_solvents_only_alcohols EMEP_tagged_solvents_only
         $emission_rate = $emission_rate(1:$NTIME-2);
         my $total_emissions = $emission_rate->sum; #integrated total emissions of parent VOC
         my ($string) = get_allocation($parent);
-        print "$parent : $total_emissions\n";
         $emissions{$label}{$string} += $total_emissions;
     } 
 }
@@ -175,7 +174,7 @@ foreach my $run (keys %plot_data) {
     );
 }
 $R->run(q` scientific_10 <- function(x) { parse(text=gsub("e", " %*% 10^", scientific_format()(x))) } `, #scientific label format for y-axis
-        q` my.colours = c( "Alkanes" = "#6c254f", "Alkenes" = "#f9c500", "Aromatics" = "#0e5628", "Carbonyls" = "#ef6638", "CH4" = "#2b9eb3", "Inorganic" = "#b569b3", "Alcohols" = "#0c3f78", "Acids" = "#6db875", "Alkynes" = "#898989", "Chlorinated" = "#000000", "Ethers" = "#c65d6c", "Esters" = "#b569b3") `,
+        q` my.colours = c( "Alkanes" = "#6c254f", "Alkenes" = "#f9c500", "Aromatics" = "#0e5628", "Carbonyls" = "#ef6638", "CH4" = "#2b9eb3", "Inorganic" = "#b569b3", "Alcohols" = "#0c3f78", "Acids" = "#6db875", "Alkynes" = "#898989", "Chlorinated" = "#000000", "Ethers" = "#c65d6c", "Esters" = "#888a87") `,
         q` data$Group = factor(data$Group, levels = c("Alkanes", "Alkenes", "Aromatics", "Carbonyls", "Alcohols", "Acids", "Alkynes", "Ethers", "Esters", "Chlorinated")) `,
         q` data = ddply(data, .(Group)) `,
 );
