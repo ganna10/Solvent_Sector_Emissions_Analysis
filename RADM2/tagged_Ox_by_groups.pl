@@ -21,7 +21,7 @@ my $dt = $mecca->dt->at(0);
 my $n_per_day = 43200 / $dt;
 my $n_days = int ($NTIME / $n_per_day);
 
-my @alkanes = qw( CH4 ETH HC3 HC5 HC8 );
+my @alkanes = qw( ETH HC3 HC5 HC8 );
 my @alkenes = qw( OL2 OLT OLI ISO );
 my @aromatics = qw( TOL XYL );
 my @carbonyls = qw( KET HCHO ALD );
@@ -73,7 +73,9 @@ foreach my $run (@tagged_runs) {
                 } elsif ($parent ~~ @aromatics) {
                     $string = "Aromatics";
                 } elsif ($parent ~~ @carbonyls) {
-                    $string = "Carbonyl";
+                    $string = "Carbonyls";
+                } elsif ($parent eq "CH4") {
+                    $string = $parent;
                 } else {
                     print "No group found for $parent\n";
                 }
@@ -98,7 +100,9 @@ foreach my $run (@tagged_runs) {
                 } elsif ($parent ~~ @aromatics) {
                     $string = "Aromatics";
                 } elsif ($parent ~~ @carbonyls) {
-                    $string = "Carbonyl";
+                    $string = "Carbonyls";
+                } elsif ($parent eq "CH4") {
+                    $string = $parent;
                 } else {
                     print "No group found for $parent\n";
                 }
@@ -163,9 +167,10 @@ foreach my $speciation (keys %plot_data) {
     );
 }
 
-$R->run(q` my.colours = c( "Alkanes" = "#6c254f", "Alkenes" = "#f9c500", "Aromatics" = "#0e5628", "Carbonyl" = "#ef6638", "Inorganic" = "#2b9eb3") `,
+$R->run(q` my.colours = c( "Alkanes" = "#6c254f", "Alkenes" = "#f9c500", "Aromatics" = "#0e5628", "Carbonyls" = "#ef6638", "CH4" = "#2b9eb3", "Inorganic" = "#b569b3") `,
         q` scientific_10 <- function(x) { parse(text=gsub("e", " %*% 10^", scientific_format()(x))) } `, #scientific label format for y-axis
-        q` data$Group = factor(data$Group, levels = rev(c("Alkanes", "Alkenes", "Aromatics", "Carbonyl", "Inorganic"))) `,
+        q` data$Group = factor(data$Group, levels = c("Alkanes", "Alkenes", "Aromatics", "Carbonyls", "CH4", "Inorganic")) `,
+        q` data = ddply(data, .(Group)) `,
 );
 #my $p = $R->run(q` print(levels(data$Group)) `);
 #print $p, "\n";
@@ -185,7 +190,7 @@ $R->run(q` plot = ggplot(data = data, aes(x = time, y = Rate, fill = Group)) `,
         q` plot = plot + theme(axis.text.y = element_text(size = 140))`,
         q` plot = plot + theme(axis.title.y = element_text(size = 200))`,
         q` plot = plot + theme(legend.title = element_blank(), legend.key.size = unit(7, "cm"), legend.text = element_text(size = 140, face = "bold"), legend.key = element_blank()) `, 
-        q` plot = plot + scale_fill_manual(values = my.colours) `,
+        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(levels(data$Group))) `,
 );
 
 $R->run(q` CairoPDF(file = "RADM2_Ox_budget_by_group.pdf", width = 200, height = 141) `,

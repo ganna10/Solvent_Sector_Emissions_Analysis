@@ -1,7 +1,6 @@
 #! /usr/bin/env perl
 # allocate Ox production from tagged MOZART runs to VOC functional groups
 # Version 0: Jane Coates 1/11/2014
-##### to do ->sort plot levels
 
 use strict;
 use diagnostics;
@@ -22,7 +21,7 @@ my $dt = $mecca->dt->at(0);
 my $n_per_day = 43200 / $dt;
 my $n_days = int ($NTIME / $n_per_day);
 
-my @alkanes = qw( CH4 C2H6 C3H8 BIGALK );
+my @alkanes = qw( C2H6 C3H8 BIGALK );
 my @alkenes = qw( C2H4 C3H6 BIGENE ISOP C10H16 );
 my @aromatics = qw( TOLUENE );
 my @carbonyls = qw( CH2O CH3CHO MEK CH3COCH3 MACR );
@@ -84,6 +83,8 @@ foreach my $run (@tagged_runs) {
                     $string = "Acids";
                 } elsif ($parent ~~ @alkynes) {
                     $string = "Alkynes";
+                } elsif ($parent eq "CH4") {
+                    $string = $parent;
                 } else {
                     print "No group found for $parent\n";
                 }
@@ -115,6 +116,8 @@ foreach my $run (@tagged_runs) {
                     $string = "Acids";
                 } elsif ($parent ~~ @alkynes) {
                     $string = "Alkynes";
+                } elsif ($parent eq "CH4") {
+                    $string = $parent;
                 } else {
                     print "No group found for $parent\n";
                 }
@@ -179,10 +182,10 @@ foreach my $speciation (keys %plot_data) {
     );
 }
 
-$R->run(q` my.colours = c( "Alkanes" = "#6c254f", "Alkenes" = "#f9c500", "Aromatics" = "#0e5628", "Carbonyls" = "#ef6638", "Inorganic" = "#2b9eb3", "Alcohols" = "#b569b3", "Acids" = "#0c3f78", "Alkynes" = "#6db875") `,
+$R->run(q` my.colours = c( "Alkanes" = "#6c254f", "Alkenes" = "#f9c500", "Aromatics" = "#0e5628", "Carbonyls" = "#ef6638", "CH4" = "#2b9eb3", "Inorganic" = "#b569b3", "Alcohols" = "#0c3f78", "Acids" = "#6db875", "Alkynes" = "#898989") `,
         q` scientific_10 <- function(x) { parse(text=gsub("e", " %*% 10^", scientific_format()(x))) } `, #scientific label format for y-axis
-        q` my.names = c("Alkanes", "Alkenes", "Aromatics", "Carbonyls", "Alcohols", "Acids", "Alkynes", "Inorganic") `,
-        q` data$Group = factor(data$Group, levels = c("Alkanes", "Alkenes", "Aromatics", "Carbonyls", "Alcohols", "Acids", "Alkynes", "Inorganic")) `,
+        q` data$Group = factor(data$Group, levels = c("Alkanes", "Alkenes", "Aromatics", "Carbonyls", "Alcohols", "Acids", "Alkynes", "CH4", "Inorganic")) `,
+        q` data = ddply(data, .(Group)) `,
 );
 #my $p = $R->run(q` print(levels(data$Group)) `);
 #print $p, "\n";
@@ -202,7 +205,7 @@ $R->run(q` plot = ggplot(data = data, aes(x = time, y = Rate, fill = Group)) `,
         q` plot = plot + theme(axis.text.y = element_text(size = 140))`,
         q` plot = plot + theme(axis.title.y = element_text(size = 200))`,
         q` plot = plot + theme(legend.title = element_blank(), legend.key.size = unit(7, "cm"), legend.text = element_text(size = 140, face = "bold"), legend.key = element_blank()) `, 
-        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(my.names)) `,
+        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(levels(data$Group))) `,
 );
 
 $R->run(q` CairoPDF(file = "MOZART_Ox_budget_by_group.pdf", width = 200, height = 141) `,

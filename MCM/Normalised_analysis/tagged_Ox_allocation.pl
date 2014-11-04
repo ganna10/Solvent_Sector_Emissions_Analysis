@@ -175,7 +175,7 @@ foreach my $run (keys %plot_data) {
     );
 }
 $R->run(q` scientific_10 <- function(x) { parse(text=gsub("e", " %*% 10^", scientific_format()(x))) } `, #scientific label format for y-axis
-        q` my.colours = c( "Alkanes" = "#6c254f", "Alkenes" = "#f9c500", "Aromatics" = "#0e5628", "Carbonyls" = "#ef6638", "Alcohols" = "#b569b3", "Acids" = "#0c3f78", "Alkynes" = "#6db875", "Chlorinated" = "#898989", "Esters" = "#000000", "Ethers" = "#c65d6c") `,
+        q` my.colours = c( "Alkanes" = "#6c254f", "Alkenes" = "#f9c500", "Aromatics" = "#0e5628", "Carbonyls" = "#ef6638", "CH4" = "#2b9eb3", "Inorganic" = "#b569b3", "Alcohols" = "#0c3f78", "Acids" = "#6db875", "Alkynes" = "#898989", "Chlorinated" = "#000000", "Ethers" = "#c65d6c", "Esters" = "#b569b3") `,
         q` data$Group = factor(data$Group, levels = c("Alkanes", "Alkenes", "Aromatics", "Carbonyls", "Alcohols", "Acids", "Alkynes", "Ethers", "Esters", "Chlorinated")) `,
         q` data = ddply(data, .(Group)) `,
 );
@@ -186,7 +186,7 @@ $R->run(q` plot = ggplot(data = data, aes(x = Time, y = Rate, fill = Group)) `,
         q` plot = plot + geom_bar(stat = "identity") `,
         q` plot = plot + facet_wrap( ~ Speciation, nrow = 2)`,
         q` plot = plot + scale_y_continuous(label = scientific_10) `,
-        q` plot = plot + ylab(expression(bold(paste(O[x], " Production Rate (molecules ", cm^-3, s^-1, ")")))) `,
+        q` plot = plot + ylab(expression(bold(paste("Normalised ",O[x], " Production Rate (molecules (Ox) / molecules (VOC) ", s^-1, ")")))) `,
         q` plot = plot + xlab("\n") `,
         q` plot = plot + theme_bw() `,
         q` plot = plot + theme(strip.text = element_text(size = 200, face = "bold")) `,
