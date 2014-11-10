@@ -13,8 +13,8 @@ use Statistics::R;
 my $base_dir = "/local/home/coates/Solvent_Emissions/MCM";
 opendir DIR, $base_dir or die "Can't open $base_dir";
 my @tagged_runs = grep { $_ =~ /_tagged_/ } readdir DIR;
-closedir DIR;
 #my @tagged_runs = qw( EMEP_tagged_solvents_only_all );
+closedir DIR;
 
 my $mecca = MECCA->new("$base_dir/EMEP_tagged_solvents_only_all/boxmodel");
 my $NTIME = $mecca->time->nelem;
@@ -200,6 +200,7 @@ $R->run(q` data = data.frame() `);
 foreach my $speciation (keys %plot_data) {
     $R->run(q` pre = data.frame(Dummy = c(1)) `);
     foreach my $group (sort keys %{$plot_data{$speciation}}) {
+        print "group: $group\n";
         $R->set('group', $group);
         $R->set('ratio', [map { $_ } $plot_data{$speciation}{$group}]);
         $R->run(q` pre[group] = ratio `);
