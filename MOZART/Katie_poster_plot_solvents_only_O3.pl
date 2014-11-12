@@ -27,16 +27,19 @@ my $species = $ARGV[0];
 #TNO data
 my $tno_conc_file = "/local/home/coates/Solvent_Emissions/MOZART/TNO_Solvents_Only/boxmodel/mecca1_tracer.nc";
 my $tno_nc = PDL::NetCDF->new($tno_conc_file);
+print "TNO: ";
 ($concentration{"TNO"}) = get_concentration($species, $tno_nc, $ntime); 
 
 #IPCC data
 my $ipcc_conc_file = "/local/home/coates/Solvent_Emissions/MOZART/IPCC_Solvents_Only/boxmodel/mecca1_tracer.nc";
 my $ipcc_nc = PDL::NetCDF->new($ipcc_conc_file);
+print "IPCC: ";
 ($concentration{"IPCC"}) = get_concentration($species, $ipcc_nc, $ntime); 
 
 #EMEP data
 my $emep_conc_file = "/local/home/coates/Solvent_Emissions/MOZART/EMEP_Solvents_Only/boxmodel/mecca1_tracer.nc";
 my $emep_nc = PDL::NetCDF->new($emep_conc_file);
+print "EMEP: ";
 ($concentration{"EMEP"}) = get_concentration($species, $emep_nc, $ntime); 
 
 #DE94 data
@@ -62,6 +65,7 @@ my $emep_nc = PDL::NetCDF->new($emep_conc_file);
 #UK08 data
 my $uk08_conc_file = "/local/home/coates/Solvent_Emissions/MOZART/UK08_Solvents_Only/boxmodel/mecca1_tracer.nc";
 my $uk08_nc = PDL::NetCDF->new($uk08_conc_file);
+print "UK08: ";
 ($concentration{"UK08"}) = get_concentration($species, $uk08_nc, $ntime); 
 
 
@@ -72,6 +76,7 @@ sub get_concentration {
     
     my $concs += $nc->get($species)->squeeze;
     $concs = $concs(1:$ntime-2) * 1e9 * 2; #convert ppb to ug/m3
+    print $concs->max, "\n";
     my $concs_list = join ":", $concs->dog;
     my @conc_array = split /:/, $concs_list;
     return \@conc_array;
