@@ -62,12 +62,25 @@ foreach my $speciation (sort keys %plot_data) {
 }
 #my $p = $R->run(q` print(data) `);
 #print $p, "\n";
-$R->run(q` my.colours = c() `);
+$R->run(q` my.colours = c(  "O1D" = "#6c254f",
+                            "HCHO + hv" = "#f9c500",
+                            "MGLYOX + hv" = "#0352cb",
+                            "MEK + hv" = "#ef6638",
+                            "BIACET + hv" = "#0e5c28",
+                            "HOCH2CHO + hv" = "#77aecc",
+                            "EGLYOX + hv" = "#b569b3",
+                            "CH4 + CL" = "#6db875",
+                            "Production Others" = "#8c6238" ) `);
+$R->run(q` data$Reaction = factor(data$Reaction, levels = c("O1D", "HCHO + hv", "MGLYOX + hv", "MEK + hv", "BIACET + hv", "HOCH2CHO + hv", "EGLYOX + hv", "CH4 + CL", "Production Others")) `);
 
 $R->run(q` plot = ggplot(data, aes(x = Time, y = Rate, fill = Reaction)) `,
         q` plot = plot + geom_bar(stat = "identity") `,
         q` plot = plot + facet_wrap( ~ Speciation ) `,
         q` plot = plot + theme_bw() `,
+        q` plot = plot + theme(panel.grid = element_blank()) `,
+        q` plot = plot + theme(strip.background = element_blank()) `,
+        q` plot = plot + theme(strip.text = element_text(face = "bold")) `,
+        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(levels(data$Reaction))) `,
 );
 
 $R->run(q` CairoPDF(file = "net_radical_NOx_production.pdf") `,
@@ -118,7 +131,7 @@ sub get_data {
         $production_rates{$reactants} += $rate(1:$NTIME-2);
     }
 
-    my $others = 2.5e7;
+    my $others = 3.0e7;
     foreach my $reaction (keys %production_rates) {
         if ($production_rates{$reaction}->sum < $others) {
             $production_rates{'Production Others'} += $production_rates{$reaction};
