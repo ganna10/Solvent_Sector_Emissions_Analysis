@@ -1,0 +1,32 @@
+\documentclass{report}
+\usepackage{multirow}
+\usepackage{booktabs}
+\begin{document}
+
+\begin{table}
+	\begin{center}
+		\makebox[\textwidth][c]{
+		\begin{tabular}{lllll}
+			\toprule
+			\multirow{2}{*}{\textbf{Mechanism}} & \multirow{2}{*}{\textbf{Run}} & \textbf{Difference in O3} & \textbf{Maximum O3} & \textbf{Least O3} \\ 
+			 & & \textbf{Mixing Ratios} & \textbf{Speciation} & \textbf{Speciation} \\ \toprule
+			MCM & All Sectors & 11.35 & EMEP & GR05\\ 
+			MCM & Mean NO Source All Sectors & 11.35 & EMEP & GR05\\ 
+			MCM & Mean NO Source Solvents Only & 15.57 & EMEP & GR05\\ 
+			MCM & Solvents Only & 15.57 & EMEP & GR05\\ 
+			\midrule
+			MOZART & All Sectors & 20.71 & EMEP & GR05\\ 
+			MOZART & Mean NO Source All Sectors & 23.67 & EMEP & GR05\\ 
+			MOZART & Mean NO Source Solvents Only & 11.44 & IPCC & UK08\\ 
+			MOZART & Solvents Only & 10.61 & IPCC & UK08\\ 
+			\midrule
+			RADM2 & All Sectors & 21.12 & IPCC & GR05\\ 
+			RADM2 & Mean NO Source All Sectors & 29.81 & IPCC & EMEP\\ 
+			RADM2 & Mean NO Source Solvents Only & 22.47 & IPCC & UK08\\ 
+			RADM2 & Solvents Only & 16.40 & IPCC & UK98\\ 
+			\bottomrule
+		\end{tabular}}
+		\end{center}
+\end{table}
+
+\end{document}
