@@ -40,6 +40,7 @@ $R->run(q` library(ggplot2) `,
         q` library(reshape2) `,
         q` library(Cairo) `,
         q` library(grid) `,
+        q` library(dplyr) `,
 );
 
 $R->set('Time', [ ("Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7") ]);
@@ -61,15 +62,21 @@ foreach my $speciation (sort keys %plot_data) {
             q` data = rbind(data, pre) `,
     );
 }
-#my $p = $R->run(q` print(data) `);
+
+#$R->run(q` casted = dcast(data, Time ~ Reaction, margins = Speciation ) `);
+#$R->run(q` filter = filter(data, Time == "Day 1", Speciation == "EMEP") `);
+#my $p = $R->run(q` print(casted) `);
 #print $p, "\n";
 $R->run(q` my.colours = c(  "O1D" = "#6c254f",
                             "CH2O + hv" = "#f9c500",
                             "CH3COCHO + hv" = "#0352cb",
                             "MEK + hv" = "#ef6638",
                             "BIGALD + hv" = "#0e5c28",
+                            "CH3CHO + hv" = "#77aecc",
+                            "H2O2 + hv" = "#b569b3",
+                            "GLYOXAL + hv" = "#6db875",
                             "Production Others" = "#8c6238" ) `);
-$R->run(q` data$Reaction = factor(data$Reaction, levels = c("O1D", "CH2O + hv", "CH3COCHO + hv", "MEK + hv", "BIGALD + hv", "Production Others")) `);
+$R->run(q` data$Reaction = factor(data$Reaction, levels = c("O1D", "CH2O + hv", "CH3COCHO + hv", "MEK + hv", "BIGALD + hv", "CH3CHO + hv", "H2O2 + hv", "GLYOXAL + hv", "Production Others")) `);
 
 $R->run(q` plot = ggplot(data, aes(x = Time, y = Rate, fill = Reaction)) `,
         q` plot = plot + geom_bar(stat = "identity") `,
@@ -129,7 +136,7 @@ sub get_data {
         $production_rates{$reactants} += $rate(1:$NTIME-2);
     }
 
-    my $others = 3.0e7;
+    my $others = 2.0e7;
     foreach my $reaction (keys %production_rates) {
         if ($production_rates{$reaction}->sum < $others) {
             $production_rates{'Production Others'} += $production_rates{$reaction};
