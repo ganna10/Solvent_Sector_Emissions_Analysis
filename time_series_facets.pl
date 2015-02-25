@@ -1,6 +1,7 @@
 #! /usr/bin/env perl
 # Mixing Ratio time series plots, facet by solvent speciation. ARGV is species name
 # Version 0 : Jane Coates 19/1/2015
+# Version 1: Jane Coates 25/2/2015 plotting aesthetic changes
 
 use strict;
 use diagnostics;
@@ -36,12 +37,13 @@ my $R = Statistics::R->new();
 $R->run(q` library(ggplot2) `,
         q` library(tidyr) `,
         q` library(grid) `,
+        q` library(ggthemes) `,
         q` library(Cairo) `,
 );
 
 $R->set('Time', [map { $_ } $times->dog]);
 $R->set('title', "$species Mixing Ratios");
-$R->set('file.name', "${species}_mixing_ratio_comparison.pdf");
+$R->set('file.name', "${species}_mixing_ratio_comparison_by_speciation.pdf");
 $R->run(q` data = data.frame() `);
 
 foreach my $mechanism (sort keys %data) {
@@ -57,31 +59,29 @@ foreach my $mechanism (sort keys %data) {
             q` data = rbind(data, pre) `,
     );
 } 
-#my $p = $R->run(q` print(pre) `);
+#my $p = $R->run(q` print(data) `);
 #print "$p\n";
 
 $R->run(q` my.colours = c("MCM" = "#6c254f", "MOZART" = "#ef6638", "RADM2" = "#0e5c28") `);
 $R->run(q` plot = ggplot(data, aes(x = Time, y = Mixing.Ratio, colour = Mechanism, group = Mechanism)) `,
         q` plot = plot + geom_line() `,
         q` plot = plot + facet_wrap( ~ Speciation) `,
-        q` plot = plot + theme_bw() `,
+        q` plot = plot + theme_tufte() `,
         q` plot = plot + ylab("Mixing Ratio (ppbv)") `,
         q` plot = plot + xlab("Time (days)") `,
         q` plot = plot + scale_x_continuous(limits = c(0, 7), breaks = seq(0, 7, 1), expand = c(0, 0)) `,
+        q` plot = plot + scale_y_continuous(expand = c(0, 0)) `,
         q` plot = plot + ggtitle(title) `,
+        q` plot = plot + theme(axis.line = element_line(colour = "black")) `,
         q` plot = plot + theme(strip.text = element_text(face = "bold")) `,
-        q` plot = plot + theme(strip.background = element_blank()) `,
-        q` plot = plot + theme(panel.grid = element_blank()) `,
         q` plot = plot + theme(panel.margin.x = unit(0.3, "cm")) `,
-        q` plot = plot + theme(panel.border = element_rect(colour  = "black")) `,
         q` plot = plot + theme(axis.title = element_text(face = "bold")) `,
         q` plot = plot + theme(legend.title = element_blank()) `,
-        q` plot = plot + theme(legend.key = element_blank()) `,
         q` plot = plot + theme(legend.position = c(0.85, 0.1)) `,
         q` plot = plot + scale_colour_manual(values = my.colours) `,
 );
 
-$R->run(q` CairoPDF(file = file.name) `,
+$R->run(q` CairoPDF(file = file.name, width = 8.6, height = 6) `,
         q` print(plot) `,
         q` dev.off() `,
 );
