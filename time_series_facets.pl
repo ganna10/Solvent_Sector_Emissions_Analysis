@@ -10,6 +10,9 @@ use PDL::NiceSlice;
 use Statistics::R;
 use MECCA;
 
+my $species = $ARGV[0];
+die "Need to specify species!" unless defined $species;
+
 my $base = "/local/home/coates/Solvent_Emissions";
 #Create x-axis for plot in hours
 my $mecca = MECCA->new("$base/MCM/TNO_Solvents_Only/boxmodel"); 
@@ -20,7 +23,6 @@ $times = $times(1:$ntime-2);
 $times /= 86400;
 
 my %data;
-my $species = $ARGV[0];
 my @mechanisms = qw( MCM MOZART RADM2 );
 my @speciations = qw( DE94 EMEP GR05 GR95 IPCC TNO UK08 UK98 );
 
@@ -65,15 +67,16 @@ foreach my $mechanism (sort keys %data) {
 $R->run(q` my.colours = c("MCM" = "#6c254f", "MOZART" = "#ef6638", "RADM2" = "#0e5c28") `);
 $R->run(q` plot = ggplot(data, aes(x = Time, y = Mixing.Ratio, colour = Mechanism, group = Mechanism)) `,
         q` plot = plot + geom_line() `,
-        q` plot = plot + facet_wrap( ~ Speciation) `,
+        q` plot = plot + facet_wrap( ~ Speciation, scales = "free") `,
         q` plot = plot + theme_tufte() `,
         q` plot = plot + ylab("Mixing Ratio (ppbv)") `,
         q` plot = plot + xlab("Time (days)") `,
         q` plot = plot + scale_x_continuous(limits = c(0, 7), breaks = seq(0, 7, 1), expand = c(0, 0)) `,
-        q` plot = plot + scale_y_continuous(expand = c(0, 0)) `,
+        q` plot = plot + scale_y_continuous(limits = c(35, 105), breaks = seq(35, 105, 10), expand = c(0, 0)) `,
         q` plot = plot + ggtitle(title) `,
         q` plot = plot + theme(axis.line = element_line(colour = "black")) `,
         q` plot = plot + theme(strip.text = element_text(face = "bold")) `,
+        q` plot = plot + theme(plot.title = element_text(face = "bold")) `,
         q` plot = plot + theme(panel.margin.x = unit(0.3, "cm")) `,
         q` plot = plot + theme(axis.title = element_text(face = "bold")) `,
         q` plot = plot + theme(legend.title = element_blank()) `,
