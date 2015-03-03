@@ -1,6 +1,7 @@
 #! /usr/bin/env perl
 # Plot Ox production and consumption budgets for each mechanism and speciation, conditions
 # Version 0: Jane Coates 26/2/2015
+# Version 1: Jane Coates 3/3/2015 plotting solvents only Ox production and all mechanisms on one plot by facettingnd cumulative Ox production over whole model run
 #
 use strict;
 use diagnostics;
@@ -139,7 +140,7 @@ sub get_data {
         next if ($rate->sum == 0);
         my $reaction_string = $kpp->reaction_string($reaction);
         my ($reactants, $products) = split / = /, $reaction_string;
-        $production_rates{$reactants} += $rate(1:$ntime-2);
+        $production_rates{$reactants} += $rate(1:$ntime-2)->sumover;
     }
 
     for (0..$#$consumers) {
@@ -149,19 +150,15 @@ sub get_data {
         next if ($rate->sum == 0);
         my $reaction_string = $kpp->reaction_string($reaction);
         my ($reactants, $products) = split / = /, $reaction_string;
-        $consumption_rates{$reactants} += $rate(1:$ntime-2);
+        $consumption_rates{$reactants} += $rate(1:$ntime-2)->sumover;
     }
     remove_common_processes(\%production_rates, \%consumption_rates);
 
     my $others_max  = 5e8;
     foreach my $reaction (sort keys %production_rates) {
-        my $reshape = $production_rates{$reaction}->reshape($n_per_day, $n_days);
-        my $integrate = $reshape->sumover;
         if ($integrate->sum < $others_max) {
-            $production_rates{"Production Others"} += $integrate(0:13:2);
+            $production_rates{"Production Others"} += $production_rates{$reaction};
             delete $production_rates{$reaction};
-        } else {
-            $production_rates{$reaction} = $integrate(0:13:2);
         }
     }
 
