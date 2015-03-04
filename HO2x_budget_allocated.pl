@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Allocate Cumulative Ox production budgets back to categories used to defined speciations
+# Allocate Cumulative HO2x production budgets back to categories used to defined speciations
 # Jane Coates 1/3/2015
 
 use strict;
@@ -30,7 +30,7 @@ foreach my $mechanism (@mechanisms) {
             my $eqn_file = "$base/$mechanism/${speciation}_tagged_solvents_only/gas.eqn";
             my $kpp = KPP->new($eqn_file); 
 
-            foreach my $species (qw( Ox HO2x )) {
+            foreach my $species (qw( HO2x )) {
                 $kpp->family({
                         name    => $species,
                         members => $families{$species},
@@ -84,7 +84,7 @@ foreach my $mechanism (@mechanisms) {
                 my $eqn_file = "$base/$mechanism/$run/gas.eqn";
                 my $kpp = KPP->new($eqn_file); 
 
-                foreach my $species (qw( Ox HO2x )) {
+                foreach my $species (qw( HO2x )) {
                     $kpp->family({
                             name    => $species,
                             members => $families{$species},
@@ -134,20 +134,10 @@ foreach my $mechanism (@mechanisms) {
         }
 
         remove_common_processes($production_rates{"HO2x"}, $consumption_rates{"HO2x"});
-        my $total_ho2x_production;
-        $total_ho2x_production += $production_rates{"HO2x"}{$_} foreach (keys %{$production_rates{"HO2x"}});
-        
-        foreach my $reaction (keys %{$production_rates{'HO2x'}}) {
-            $production_rates{"Ox"}{$reaction} += $production_rates{"Ox"}{'HO2 + NO = NO2 + OH'} * $production_rates{'HO2x'}{$reaction} / $total_ho2x_production;
-            $consumption_rates{"Ox"}{$reaction} += $consumption_rates{"Ox"}{'HO2 + O3 = OH'} * $consumption_rates{'HO2x'}{$reaction} / $total_ho2x_production; 
-        }
-        delete $production_rates{"Ox"}{'HO2 + NO = NO2 + OH'};
-        delete $consumption_rates{"Ox"}{'HO2 + O3 = OH'};
-        remove_common_processes($production_rates{"Ox"}, $consumption_rates{"Ox"});
 
-        foreach my $process (sort keys %{$production_rates{"Ox"}}) {
+        foreach my $process (sort keys %{$production_rates{"HO2x"}}) {
             my $category = get_category($process, $mechanism, $speciation);
-            $data{$mechanism}{$speciation}{$category} += $production_rates{"Ox"}{$process};
+            $data{$mechanism}{$speciation}{$category} += $production_rates{"HO2x"}{$process};
         }
     }
 }
@@ -173,27 +163,27 @@ foreach my $mechanism (sort keys %data) {
             next if ($type eq "CO"); ####Contribution practically the same throughout
             next if ($type eq "Methane"); ###focusing on specified VOC
             $R->set('type', $type);
-            $R->set('Ox.production', $data{$mechanism}{$speciation}{$type}->at(0));
-            $R->run(q` pre[type] = Ox.production `);
+            $R->set('HO2x.production', $data{$mechanism}{$speciation}{$type}->at(0));
+            $R->run(q` pre[type] = HO2x.production `);
         }
-        $R->run(q` pre = gather(pre, Type, Ox.Production, -Mechanism, -Speciation) `,
+        $R->run(q` pre = gather(pre, Type, HO2x.Production, -Mechanism, -Speciation) `,
                 q` data = rbind(data, pre) `,
         );
         #my $p = $R->run(q` print(pre) `);
         #print $p, "\n";
     }
 }
-$R->set('filename', "Ox_Allocated_tagged_solvents_only.pdf");
-$R->set('title', "Cumulative Ox Production Budget");
+$R->set('filename', "HO2x_Allocated_tagged_solvents_only.pdf");
+$R->set('title', "Cumulative HO2x Production Budget");
 $R->run(q` data$Type = factor(data$Type, levels = c("Acids", "Alcohols", "Benzene", "Butanes", "Chlorinated HC's", "Esters", "Ethane", "Ethene", "Ethers", "Ethyne", "Formaldehyde", "Higher alkanes", "Ketones", "Other aldehydes", "Other alkenes, alkynes, dienes", "Other aromatics", "Pentanes", "Propane", "Propene", "Terpenes", "Toluene", "Trimethylbenzenes", "Xylenes")) `);
 $R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
 
-$R->run(q` plot = ggplot(data, aes(x = Mechanism, y = Ox.Production, fill = Type)) `,
+$R->run(q` plot = ggplot(data, aes(x = Speciation, y = HO2x.Production, fill = Type)) `,
         q` plot = plot + geom_bar(stat = "identity", position = "stack") `,
-        q` plot = plot + facet_wrap( ~ Speciation, nrow = 2) `,
+        q` plot = plot + facet_wrap( ~ Mechanism, nrow = 1) `,
         q` plot = plot + theme_tufte() `,
         q` plot = plot + ggtitle(title) `,
-        q` plot = plot + ylab("Ox Production (molecules cm-3)") `,
+        q` plot = plot + ylab("HO2x Production (molecules cm-3)") `,
         q` plot = plot + scale_y_continuous(expand = c(0, 0)) `,
         q` plot = plot + scale_x_discrete(expand = c(0, 0)) `,
         q` plot = plot + theme(axis.ticks.x = element_blank()) `,

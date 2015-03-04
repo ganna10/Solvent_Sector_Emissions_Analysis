@@ -13,12 +13,12 @@ use Statistics::R;
 my $species = $ARGV[0];
 die "Need to specify a species\n" unless defined $species;
 
-my $base = "/work/users/jco/Solvent_Emissions";
-#my $base = "/local/home/coates/Solvent_Emissions";
+#my $base = "/work/users/jco/Solvent_Emissions";
+my $base = "/local/home/coates/Solvent_Emissions";
 my @mechanisms = qw(MCM MOZART RADM2);
 my @speciations = qw( DE94 EMEP GR05 GR95 IPCC TNO UK08 UK98 );
-my @runs = qw( Solvents_Only all_sectors mean_NO_source_all_sectors mean_NO_source_Solvents_only );
-#my @runs = qw( Solvents_Only );
+#my @runs = qw( Solvents_Only all_sectors mean_NO_source_all_sectors mean_NO_source_Solvents_only );
+my @runs = qw( Solvents_Only );
 my %data;
 
 my $mecca = MECCA->new("$base/RADM2/DE94_Solvents_Only/boxmodel");
@@ -33,7 +33,7 @@ foreach my $mechanism (@mechanisms) {
         foreach my $run (@runs) {
             my $dir = "$base/$mechanism/${speciation}_$run";
             my $mecca = MECCA->new("$dir/boxmodel");
-            my $mr = $mecca->tracer($species) * 1e9;
+            my $mr = $mecca->tracer($species); 
             $data{$run}{$mechanism}{$speciation} = $mr(1:$ntime-2);
         }
     }
@@ -74,9 +74,9 @@ foreach my $run (sort keys %data) {
             q` plot = plot + facet_wrap( ~ Mechanism) `,
             q` plot = plot + theme_tufte() `,
             q` plot = plot + ggtitle(title) `,
-            q` plot = plot + scale_y_continuous(expand = c(0, 1)) `,
+            q` plot = plot + scale_y_continuous(expand = c(0, 0)) `,
             q` plot = plot + scale_x_continuous(limits = c(0, 7), breaks = seq(0, 7, 1), expand = c(0, 0)) `,
-            q` plot = plot + ylab("Mixing Ratio (ppbv)") `,
+            q` plot = plot + ylab("Mixing Ratio (molecules/molecule)") `,
             q` plot = plot + xlab("Time (Days)") `,
             q` plot = plot + theme(axis.line = element_line(colour = "black")) `,
             q` plot = plot + theme(strip.text = element_text(face = "bold")) `,
@@ -87,6 +87,8 @@ foreach my $run (sort keys %data) {
             q` plot = plot + theme(legend.position = c(1.03, 1.03)) `,
             q` plot = plot + theme(legend.justification = c(1, 1)) `,
             q` plot = plot + scale_colour_manual(values = my.colours) `,
+            #q` plot = plot + guide(guides = guide_legend(position = "horizontal")) `,
+            q` plot = plot + theme(legend.position = "bottom") `,
     );
 
     $R->run(q` Cairo(file = filename, type = "pdf", bg = "transparent", units = "cm", width = 27, height = 10.3) `,
