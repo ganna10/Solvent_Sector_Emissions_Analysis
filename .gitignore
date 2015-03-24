@@ -19,3 +19,5 @@ nytprof.out
 *.bs
 *.aux
 *.log
+*.csv
+*.txt
