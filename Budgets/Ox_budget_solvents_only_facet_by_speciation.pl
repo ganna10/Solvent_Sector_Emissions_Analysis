@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Cumulative OH production budgets 
+# Cumulative Ox production budgets, faceted by speciation
 # Jane Coates 3/3/2015
 
 use strict;
@@ -28,53 +28,71 @@ foreach my $mechanism (@mechanisms) {
         my $eqn_file = "$base/$mechanism/${speciation}_Solvents_Only/gas.eqn";
         my $kpp = KPP->new($eqn_file); 
 
-        my $producers = $kpp->producing("OH");
-        my $producer_yields = $kpp->effect_on("OH", $producers);
-        my $consumers = $kpp->consuming("OH");
-        my $consumer_yields = $kpp->effect_on("OH", $consumers);
+        foreach my $species (qw( Ox HO2x )) {
+            $kpp->family({
+                    name    => $species,
+                    members => $families{$species},
+                    weights => $weights{$species},
+            });
+            my $producers = $kpp->producing($species);
+            my $producer_yields = $kpp->effect_on($species, $producers);
+            my $consumers = $kpp->consuming($species);
+            my $consumer_yields = $kpp->effect_on($species, $consumers);
 
-        print "No producers for OH in $mechanism, $speciation\n" if (@$producers == 0);
-        print "No consumers for OH in $mechanism, $speciation\n" if (@$consumers == 0);
+            print "No producers for $species in $mechanism, $speciation\n" if (@$producers == 0);
+            print "No consumers for $species in $mechanism, $speciation\n" if (@$consumers == 0);
 
-        for (0..$#$producers) {
-            my $reaction = $producers->[$_];
-            my $reaction_number = $kpp->reaction_number($reaction);
-            my $rate = $mecca->rate($reaction_number) * $producer_yields->[$_];
-            next if ($rate->sum == 0);
-            my ($number, $parent) = split /_/, $reaction;
-            if (defined $parent) {
-                $production_rates{$parent} += $rate(1:$ntime-2)->sumover;
-            } else {
-                my $reaction_string = $kpp->reaction_string($reaction);
-                my ($reactants, $products) = split / = /, $reaction_string;
-                $production_rates{$reactants} += $rate(1:$ntime-2)->sumover;
+            for (0..$#$producers) {
+                my $reaction = $producers->[$_];
+                my $reaction_number = $kpp->reaction_number($reaction);
+                my $rate = $mecca->rate($reaction_number) * $producer_yields->[$_];
+                next if ($rate->sum == 0);
+                my ($number, $parent) = split /_/, $reaction;
+                if (defined $parent) {
+                    $production_rates{$species}{$parent} += $rate(1:$ntime-2)->sumover;
+                } else {
+                    my $reaction_string = $kpp->reaction_string($reaction);
+                    my ($reactants, $products) = split / = /, $reaction_string;
+                    $production_rates{$species}{$reactants} += $rate(1:$ntime-2)->sumover;
+                }
+            }
+
+            for (0..$#$consumers) {
+                my $reaction = $consumers->[$_];
+                my $reaction_number = $kpp->reaction_number($reaction);
+                my $rate = $mecca->rate($reaction_number) * $consumer_yields->[$_];
+                next if ($rate->sum == 0);
+                my ($number, $parent) = split /_/, $reaction;
+                if (defined $parent) {
+                    $consumption_rates{$species}{$parent} += $rate(1:$ntime-2)->sumover;
+                } else {
+                    my $reaction_string = $kpp->reaction_string($reaction);
+                    my ($reactants, $products) = split / = /, $reaction_string;
+                    $consumption_rates{$species}{$reactants} += $rate(1:$ntime-2)->sumover;
+                }
             }
         }
 
-        for (0..$#$consumers) {
-            my $reaction = $consumers->[$_];
-            my $reaction_number = $kpp->reaction_number($reaction);
-            my $rate = $mecca->rate($reaction_number) * $consumer_yields->[$_];
-            next if ($rate->sum == 0);
-            my ($number, $parent) = split /_/, $reaction;
-            if (defined $parent) {
-                $consumption_rates{$parent} += $rate(1:$ntime-2)->sumover;
-            } else {
-                my $reaction_string = $kpp->reaction_string($reaction);
-                my ($reactants, $products) = split / = /, $reaction_string;
-                $consumption_rates{$reactants} += $rate(1:$ntime-2)->sumover;
-            }
+        remove_common_processes($production_rates{"HO2x"}, $consumption_rates{"HO2x"});
+        my $total_ho2x_production;
+        $total_ho2x_production += $production_rates{"HO2x"}{$_} foreach (keys %{$production_rates{"HO2x"}});
+        
+        foreach my $reaction (keys %{$production_rates{'HO2x'}}) {
+            $production_rates{"Ox"}{$reaction} += $production_rates{"Ox"}{'HO2 + NO'} * $production_rates{'HO2x'}{$reaction} / $total_ho2x_production;
+            $consumption_rates{"Ox"}{$reaction} += $consumption_rates{"Ox"}{'HO2 + O3'} * $consumption_rates{'HO2x'}{$reaction} / $total_ho2x_production; 
         }
-        remove_common_processes(\%production_rates, \%consumption_rates);
+        delete $production_rates{"Ox"}{'HO2 + NO'};
+        delete $consumption_rates{"Ox"}{'HO2 + O3'};
+        remove_common_processes($production_rates{"Ox"}, $consumption_rates{"Ox"});
 
-        my $others = 8e6;
-        foreach my $process (keys %production_rates) {
-            if ($production_rates{$process}->sum < $others) {
-                $production_rates{"Others"} += $production_rates{$process};
-                delete $production_rates{$process};
+        my $others = 8e8;
+        foreach my $process (keys %{$production_rates{"Ox"}}) {
+            if ($production_rates{"Ox"}{$process}->sum < $others) {
+                $production_rates{"Ox"}{"Others"} += $production_rates{"Ox"}{$process};
+                delete $production_rates{"Ox"}{$process};
             }
         }
-        $data{$mechanism}{$speciation} = \%production_rates;
+        $data{$mechanism}{$speciation} = $production_rates{"Ox"};
     }
 }
 
@@ -95,26 +113,26 @@ foreach my $mechanism (sort keys %data) {
         $R->run(q` pre$Speciation = speciation `);
         foreach my $process (sort keys %{$data{$mechanism}{$speciation}}) {
             $R->set('process', $process);
-            $R->set('OH.production', $data{$mechanism}{$speciation}{$process}->at(0));
-            $R->run(q` pre[process] = OH.production `);
+            $R->set('Ox.production', $data{$mechanism}{$speciation}{$process}->at(0));
+            $R->run(q` pre[process] = Ox.production `);
         }
-        $R->run(q` pre = gather(pre, Process, OH.Production, -Mechanism, -Speciation) `,
+        $R->run(q` pre = gather(pre, Process, Ox.Production, -Mechanism, -Speciation) `,
                 q` data = rbind(data, pre) `,
         );
         #my $p = $R->run(q` print(pre) `);
         #print $p, "\n";
     }
 }
-$R->set('filename', "OH_solvents_only.pdf");
-$R->set('title', "Cumulative OH Production Budget");
-#$R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
+$R->set('filename', "Cumulative_Ox_budget_facet_speciation_solvents_only.pdf");
+$R->set('title', "Cumulative Ox Production Budget");
+$R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
 
-$R->run(q` plot = ggplot(data, aes(x = Mechanism, y = OH.Production, fill = Process)) `,
+$R->run(q` plot = ggplot(data, aes(x = Mechanism, y = Ox.Production, fill = Process)) `,
         q` plot = plot + geom_bar(stat = "identity", position = "stack") `,
         q` plot = plot + facet_wrap( ~ Speciation, nrow = 2 ) `,
         q` plot = plot + theme_tufte() `,
         q` plot = plot + ggtitle(title) `,
-        q` plot = plot + ylab("OH Production (molecules cm-3)") `,
+        q` plot = plot + ylab("Ox Production (molecules cm-3)") `,
         q` plot = plot + scale_y_continuous(expand = c(0, 0)) `,
         q` plot = plot + scale_x_discrete(expand = c(0, 0)) `,
         q` plot = plot + theme(axis.ticks.x = element_blank()) `,
@@ -125,7 +143,7 @@ $R->run(q` plot = ggplot(data, aes(x = Mechanism, y = OH.Production, fill = Proc
         q` plot = plot + theme(axis.title.x = element_blank()) `,
         q` plot = plot + theme(strip.text = element_text(face = "bold")) `,
         q` plot = plot + theme(axis.text.x = element_text(face = "bold", angle = 45, hjust = 0.7, vjust = 1.0)) `,
-        q` plot = plot + theme(panel.margin.x = unit(5, "mm")) `,
+        q` plot = plot + theme(panel.margin = unit(5, "mm")) `,
 );
 
 $R->run(q` CairoPDF(file = filename, width = 8.6, height = 6) `,

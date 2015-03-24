@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
-# Cumulative Ox production budgets 
-# Jane Coates 3/3/2015
+# Cumulative Ox production budgets, faceted by mechanism
+# Jane Coates 24/3/2015
 
 use strict;
 use diagnostics;
@@ -11,7 +11,7 @@ use PDL::NiceSlice;
 use Statistics::R;
 
 my $base = "/local/home/coates/Solvent_Emissions";
-my @mechanisms = qw( MCM MOZART RADM2 );
+my @mechanisms = qw( RADM2 );
 my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
 my (%families, %weights, %data);
 $families{"Ox"} = [ qw( O3 NO2 ) ];
@@ -52,7 +52,8 @@ foreach my $mechanism (@mechanisms) {
                     $production_rates{$species}{$parent} += $rate(1:$ntime-2)->sumover;
                 } else {
                     my $reaction_string = $kpp->reaction_string($reaction);
-                    $production_rates{$species}{$reaction_string} += $rate(1:$ntime-2)->sumover;
+                    my ($reactants, $products) = split / = /, $reaction_string;
+                    $production_rates{$species}{$reactants} += $rate(1:$ntime-2)->sumover;
                 }
             }
 
@@ -66,7 +67,8 @@ foreach my $mechanism (@mechanisms) {
                     $consumption_rates{$species}{$parent} += $rate(1:$ntime-2)->sumover;
                 } else {
                     my $reaction_string = $kpp->reaction_string($reaction);
-                    $consumption_rates{$species}{$reaction_string} += $rate(1:$ntime-2)->sumover;
+                    my ($reactants, $products) = split / = /, $reaction_string;
+                    $consumption_rates{$species}{$reactants} += $rate(1:$ntime-2)->sumover;
                 }
             }
         }
@@ -76,21 +78,21 @@ foreach my $mechanism (@mechanisms) {
         $total_ho2x_production += $production_rates{"HO2x"}{$_} foreach (keys %{$production_rates{"HO2x"}});
         
         foreach my $reaction (keys %{$production_rates{'HO2x'}}) {
-            $production_rates{"Ox"}{$reaction} += $production_rates{"Ox"}{'HO2 + NO = NO2 + OH'} * $production_rates{'HO2x'}{$reaction} / $total_ho2x_production;
-            $consumption_rates{"Ox"}{$reaction} += $consumption_rates{"Ox"}{'HO2 + O3 = OH'} * $consumption_rates{'HO2x'}{$reaction} / $total_ho2x_production; 
+            $production_rates{"Ox"}{$reaction} += $production_rates{"Ox"}{'HO2 + NO'} * $production_rates{'HO2x'}{$reaction} / $total_ho2x_production;
+            $consumption_rates{"Ox"}{$reaction} += $consumption_rates{"Ox"}{'HO2 + O3'} * $consumption_rates{'HO2x'}{$reaction} / $total_ho2x_production; 
         }
-        delete $production_rates{"Ox"}{'HO2 + NO = NO2 + OH'};
-        delete $consumption_rates{"Ox"}{'HO2 + O3 = OH'};
+        delete $production_rates{"Ox"}{'HO2 + NO'};
+        delete $consumption_rates{"Ox"}{'HO2 + O3'};
         remove_common_processes($production_rates{"Ox"}, $consumption_rates{"Ox"});
 
-        my $others = 8e9;
+        my $others = 8e8;
         foreach my $process (keys %{$production_rates{"Ox"}}) {
             if ($production_rates{"Ox"}{$process}->sum < $others) {
                 $production_rates{"Ox"}{"Others"} += $production_rates{"Ox"}{$process};
                 delete $production_rates{"Ox"}{$process};
             }
         }
-        $data{$mechanism}{$speciation} = $production_rates{"Ox"};
+        $data{$speciation}{$mechanism} = $production_rates{"Ox"};
     }
 }
 
@@ -103,15 +105,15 @@ $R->run(q` library(ggplot2) `,
 );
 
 $R->run(q` data = data.frame() `);
-foreach my $mechanism (sort keys %data) {
-    $R->set('mechanism', $mechanism);
-    foreach my $speciation (sort keys %{$data{$mechanism}}) {
-        $R->run(q` pre = data.frame(Mechanism = mechanism) `);
-        $R->set('speciation', $speciation);
-        $R->run(q` pre$Speciation = speciation `);
-        foreach my $process (sort keys %{$data{$mechanism}{$speciation}}) {
+foreach my $speciation (sort keys %data) {
+    $R->set('speciation', $speciation);
+    foreach my $mechanism (sort keys %{$data{$speciation}}) {
+        $R->run(q` pre = data.frame(Speciation = speciation) `);
+        $R->set('mechanism', $mechanism);
+        $R->run(q` pre$Mechanism = mechanism `);
+        foreach my $process (sort keys %{$data{$speciation}{$mechanism}}) {
             $R->set('process', $process);
-            $R->set('Ox.production', $data{$mechanism}{$speciation}{$process}->at(0));
+            $R->set('Ox.production', $data{$speciation}{$mechanism}{$process}->at(0));
             $R->run(q` pre[process] = Ox.production `);
         }
         $R->run(q` pre = gather(pre, Process, Ox.Production, -Mechanism, -Speciation) `,
@@ -121,13 +123,13 @@ foreach my $mechanism (sort keys %data) {
         #print $p, "\n";
     }
 }
-$R->set('filename', "Ox_solvents_only.pdf");
+$R->set('filename', "Cumulative_Ox_budget_facet_mechanism_solvents_only.pdf");
 $R->set('title', "Cumulative Ox Production Budget");
-#$R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
+$R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
 
-$R->run(q` plot = ggplot(data, aes(x = Mechanism, y = Ox.Production, fill = Process)) `,
+$R->run(q` plot = ggplot(data, aes(x = Speciation, y = Ox.Production, fill = Process)) `,
         q` plot = plot + geom_bar(stat = "identity", position = "stack") `,
-        q` plot = plot + facet_wrap( ~ Speciation, nrow = 2 ) `,
+        q` plot = plot + facet_wrap( ~ Mechanism, nrow = 2 ) `,
         q` plot = plot + theme_tufte() `,
         q` plot = plot + ggtitle(title) `,
         q` plot = plot + ylab("Ox Production (molecules cm-3)") `,
