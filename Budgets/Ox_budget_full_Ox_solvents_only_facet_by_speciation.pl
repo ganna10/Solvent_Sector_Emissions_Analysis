@@ -10,8 +10,7 @@ use PDL;
 use PDL::NiceSlice;
 use Statistics::R;
 
-#my $base = "/local/home/coates/Solvent_Emissions";
-my $base = "/work/users/jco/Solvent_Emissions";
+my $base = "/local/home/coates/Solvent_Emissions";
 my @mechanisms = qw( MCM MOZART RADM2 );
 my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
 my (%families, %weights, %data);
@@ -53,11 +52,11 @@ foreach my $mechanism (@mechanisms) {
                 next if ($rate->sum == 0);
                 my ($number, $parent) = split /_/, $reaction;
                 if (defined $parent) {
-                    $production_rates{$species}{$parent} += $rate(1:$ntime-2);
+                    $production_rates{$species}{$parent} += $rate(1:$ntime-2)->sumover;
                 } else {
                     my $reaction_string = $kpp->reaction_string($reaction);
                     my ($reactants, $products) = split / = /, $reaction_string;
-                    $production_rates{$species}{$reactants} += $rate(1:$ntime-2);
+                    $production_rates{$species}{$reactants} += $rate(1:$ntime-2)->sumover;
                 }
             }
 
@@ -68,11 +67,11 @@ foreach my $mechanism (@mechanisms) {
                 next if ($rate->sum == 0);
                 my ($number, $parent) = split /_/, $reaction;
                 if (defined $parent) {
-                    $consumption_rates{$species}{$parent} += $rate(1:$ntime-2);
+                    $consumption_rates{$species}{$parent} += $rate(1:$ntime-2)->sumover;
                 } else {
                     my $reaction_string = $kpp->reaction_string($reaction);
                     my ($reactants, $products) = split / = /, $reaction_string;
-                    $consumption_rates{$species}{$reactants} += $rate(1:$ntime-2);
+                    $consumption_rates{$species}{$reactants} += $rate(1:$ntime-2)->sumover;
                 }
             }
         }
@@ -92,22 +91,11 @@ foreach my $mechanism (@mechanisms) {
         my $others = 4e8;
         foreach my $process (keys %{$production_rates{"Ox"}}) {
             if ($production_rates{"Ox"}{$process}->sum < $others) {
-                $production_rates{"Ox"}{"Others"} += $production_rates{"Ox"}{$process}->sum;
+                $production_rates{"Ox"}{"Others"} += $production_rates{"Ox"}{$process};
                 delete $production_rates{"Ox"}{$process};
-            } else {
-                $production_rates{"Ox"}{$process} = $production_rates{"Ox"}{$process}->sum;
             }
         }
-        
-        my $sort_function = sub { $_[0] };
-        my @sorted_prod = sort { &$sort_function($production_rates{"Ox"}{$b}) <=> &$sort_function($production_rates{"Ox"}{$a}) } keys %{$production_rates{"Ox"}};
-        my @final_sorted;
-        foreach (@sorted_prod) {
-            next if ($_ =~ /Others/);
-            push @final_sorted, { $_ => $production_rates{"Ox"}{$_} };
-        }
-        push @final_sorted, { "Others" => $production_rates{"Ox"}{"Others"} } if (defined $production_rates{"Ox"}{"Others"});
-        $data{$speciation}{$mechanism} = \@final_sorted;
+        $data{$speciation}{$mechanism} = $production_rates{"Ox"};
     }
 }
 
@@ -126,12 +114,10 @@ foreach my $speciation (sort keys %data) {
         $R->run(q` pre = data.frame(Speciation = speciation) `);
         $R->set('mechanism', $mechanism);
         $R->run(q` pre$Mechanism = mechanism `);
-        foreach my $ref (@{$data{$speciation}{$mechanism}}) {
-            foreach my $process (sort keys %$ref) {
-                $R->set('process', $process);
-                $R->set('Ox.production', $ref->{$process});
-                $R->run(q` pre[process] = Ox.production `);
-            }
+        foreach my $process (sort keys %{$data{$speciation}{$mechanism}}) {
+            $R->set('process', $process);
+            $R->set('Ox.production', $data{$speciation}{$mechanism}{$process}->at(0));
+            $R->run(q` pre[process] = Ox.production `);
         }
         $R->run(q` pre = gather(pre, Process, Ox.Production, -Mechanism, -Speciation) `,
                 q` data = rbind(data, pre) `,
@@ -140,13 +126,13 @@ foreach my $speciation (sort keys %data) {
         #print $p, "\n";
     }
 }
-$R->set('filename', "Cumulative_Ox_budget_full_Ox_facet_mechanism_solvents_only.pdf");
+$R->set('filename', "Cumulative_Ox_budget_full_Ox_facet_speciation_solvents_only.pdf");
 $R->set('title', "Cumulative Ox Production Budget");
 $R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
 
-$R->run(q` plot = ggplot(data, aes(x = Speciation, y = Ox.Production, fill = Process)) `,
+$R->run(q` plot = ggplot(data, aes(x = Mechanism, y = Ox.Production, fill = Process)) `,
         q` plot = plot + geom_bar(stat = "identity", position = "stack") `,
-        q` plot = plot + facet_wrap( ~ Mechanism, nrow = 1 ) `,
+        q` plot = plot + facet_wrap( ~ Speciation, nrow = 2 ) `,
         q` plot = plot + theme_tufte() `,
         q` plot = plot + ggtitle(title) `,
         q` plot = plot + ylab("Ox Production (molecules cm-3)") `,

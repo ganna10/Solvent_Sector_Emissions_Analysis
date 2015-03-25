@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
-# Allocate Cumulative Ox production budgets back to categories used to defined speciations in MCM only
-# Jane Coates 17/3/2015
+# Allocate Cumulative Ox production budgets back to categories used to defined speciations
+# Jane Coates 25/3/2015
 
 use strict;
 use diagnostics;
@@ -12,12 +12,10 @@ use Statistics::R;
 
 #my $base = "/local/home/coates/Solvent_Emissions";
 my $base = "/work/users/jco/Solvent_Emissions";
-my @mechanisms = qw( MCM );
-my @speciations = qw( TNO );
-#my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
+my @mechanisms = qw( MCM MOZART RADM2 );
+my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
 my (%families, %weights, %data);
 $families{"HO2x"} = [ qw( HO2 HO2NO2 ) ];
-$families{"Ox"} = [ qw( O3 NO2 ) ];
 
 my $mecca = MECCA->new("$base/RADM2/TNO_Solvents_Only/boxmodel");
 my $ntime = $mecca->time->nelem;
@@ -25,20 +23,15 @@ my $ntime = $mecca->time->nelem;
 foreach my $mechanism (@mechanisms) {
     foreach my $speciation (@speciations) {
         my (%production_rates, %consumption_rates);
-        my $dir = "$base/$mechanism";
-        opendir DIR, $dir or die "Can't open $dir : $!";
-        my @runs = grep { $_ =~ /${speciation}_tagged/ } readdir DIR;
-        closedir DIR;
-        my $run_number = scalar @runs;
-        foreach my $run (@runs) {
-            my $boxmodel = "$base/$mechanism/$run/boxmodel";
+        if ($mechanism =~ /MOZART|RADM2/) { 
+            my $boxmodel = "$base/$mechanism/${speciation}_tagged_solvents_only/boxmodel";
             my $mecca = MECCA->new($boxmodel);
-            my $eqn_file = "$base/$mechanism/$run/gas.eqn";
+            my $eqn_file = "$base/$mechanism/${speciation}_tagged_solvents_only/gas.eqn";
             my $kpp = KPP->new($eqn_file); 
-            #my $RO2_file = "$base/$mechanism/$run/RO2_species.txt";
-            #my @no2_reservoirs = get_no2_reservoirs($kpp, $RO2_file);
-            #$families{"Ox"} = [ qw( O3 NO2 O O1D NO3 N2O5 HO2NO2 ), @no2_reservoirs ];
-            #$weights{"Ox"} = { NO3 => 2, N2O5 => 5 };
+            my $RO2_file = "$base/$mechanism/${speciation}_tagged_solvents_only/RO2_species.txt";
+            my @no2_reservoirs = get_no2_reservoirs($kpp, $RO2_file);
+            $families{"Ox"} = [ qw( O3 NO2 O O1D NO3 N2O5 HO2NO2 ), @no2_reservoirs ];
+            $weights{"Ox"} = { NO3 => 2, N2O5 => 3 };
 
             foreach my $species (qw( Ox HO2x )) {
                 $kpp->family({
@@ -51,12 +44,11 @@ foreach my $mechanism (@mechanisms) {
                 my $consumers = $kpp->consuming($species);
                 my $consumer_yields = $kpp->effect_on($species, $consumers);
 
-                print "No producers for $species in $mechanism, $speciation and $run\n" if (@$producers == 0);
-                print "No consumers for $species in $mechanism, $speciation and $run\n" if (@$consumers == 0);
+                print "No producers for $species in $mechanism, $speciation\n" if (@$producers == 0);
+                print "No consumers for $species in $mechanism, $speciation\n" if (@$consumers == 0);
 
                 for (0..$#$producers) {
                     my $reaction = $producers->[$_];
-                    next if ($reaction =~ /notag/);
                     my $reaction_number = $kpp->reaction_number($reaction);
                     my $rate = $mecca->rate($reaction_number) * $producer_yields->[$_];
                     next if ($rate->sum == 0);
@@ -65,14 +57,12 @@ foreach my $mechanism (@mechanisms) {
                         $production_rates{$species}{$parent} += $rate(1:$ntime-2)->sumover;
                     } else {
                         my $reaction_string = $kpp->reaction_string($reaction);
-                        next if ($reaction_string =~ /notag/);
-                        $production_rates{$species}{$reaction_string} += $rate(1:$ntime-2)->sumover / $run_number;
+                        $production_rates{$species}{$reaction_string} += $rate(1:$ntime-2)->sumover;
                     }
                 }
 
                 for (0..$#$consumers) {
                     my $reaction = $consumers->[$_];
-                    next if ($reaction =~ /notag/);
                     my $reaction_number = $kpp->reaction_number($reaction);
                     my $rate = $mecca->rate($reaction_number) * $consumer_yields->[$_];
                     next if ($rate->sum == 0);
@@ -81,8 +71,70 @@ foreach my $mechanism (@mechanisms) {
                         $consumption_rates{$species}{$parent} += $rate(1:$ntime-2)->sumover;
                     } else {
                         my $reaction_string = $kpp->reaction_string($reaction);
-                        next if ($reaction_string =~ /notag/);
-                        $consumption_rates{$species}{$reaction_string} += $rate(1:$ntime-2)->sumover / $run_number;
+                        $consumption_rates{$species}{$reaction_string} += $rate(1:$ntime-2)->sumover;
+                    }
+                }
+            }
+        } elsif ($mechanism =~ /MCM/) {
+            my $dir = "$base/$mechanism";
+            opendir DIR, $dir or die "Can't open $dir : $!";
+            my @runs = grep { $_ =~ /${speciation}_tagged/ } readdir DIR;
+            closedir DIR;
+            my $run_number = scalar @runs;
+            foreach my $run (@runs) {
+                my $boxmodel = "$base/$mechanism/$run/boxmodel";
+                my $mecca = MECCA->new($boxmodel);
+                my $eqn_file = "$base/$mechanism/$run/gas.eqn";
+                my $kpp = KPP->new($eqn_file); 
+                my $RO2_file = "$base/$mechanism/$run/RO2_species.txt";
+                my @no2_reservoirs = get_no2_reservoirs($kpp, $RO2_file);
+                $families{"Ox"} = [ qw( O3 NO2 O O1D NO3 N2O5 HO2NO2 ), @no2_reservoirs ];
+                $weights{"Ox"} = { NO3 => 2, N2O5 => 3 };
+
+                foreach my $species (qw( Ox HO2x )) {
+                    $kpp->family({
+                            name    => $species,
+                            members => $families{$species},
+                            weights => $weights{$species},
+                    });
+                    my $producers = $kpp->producing($species);
+                    my $producer_yields = $kpp->effect_on($species, $producers);
+                    my $consumers = $kpp->consuming($species);
+                    my $consumer_yields = $kpp->effect_on($species, $consumers);
+
+                    print "No producers for $species in $mechanism, $speciation and $run\n" if (@$producers == 0);
+                    print "No consumers for $species in $mechanism, $speciation and $run\n" if (@$consumers == 0);
+
+                    for (0..$#$producers) {
+                        my $reaction = $producers->[$_];
+                        next if ($reaction =~ /notag/);
+                        my $reaction_number = $kpp->reaction_number($reaction);
+                        my $rate = $mecca->rate($reaction_number) * $producer_yields->[$_];
+                        next if ($rate->sum == 0);
+                        my ($number, $parent) = split /_/, $reaction;
+                        if (defined $parent) {
+                            $production_rates{$species}{$parent} += $rate(1:$ntime-2)->sumover;
+                        } else {
+                            my $reaction_string = $kpp->reaction_string($reaction);
+                            next if ($reaction_string =~ /notag/);
+                            $production_rates{$species}{$reaction_string} += $rate(1:$ntime-2)->sumover / $run_number;
+                        }
+                    }
+
+                    for (0..$#$consumers) {
+                        my $reaction = $consumers->[$_];
+                        next if ($reaction =~ /notag/);
+                        my $reaction_number = $kpp->reaction_number($reaction);
+                        my $rate = $mecca->rate($reaction_number) * $consumer_yields->[$_];
+                        next if ($rate->sum == 0);
+                        my ($number, $parent) = split /_/, $reaction;
+                        if (defined $parent) {
+                            $consumption_rates{$species}{$parent} += $rate(1:$ntime-2)->sumover;
+                        } else {
+                            my $reaction_string = $kpp->reaction_string($reaction);
+                            next if ($reaction_string =~ /notag/);
+                            $consumption_rates{$species}{$reaction_string} += $rate(1:$ntime-2)->sumover / $run_number;
+                        }
                     }
                 }
             }
@@ -110,9 +162,7 @@ foreach my $mechanism (@mechanisms) {
 my $R = Statistics::R->new();
 $R->run(q` library(ggplot2) `,
         q` library(tidyr) `,
-        q` library(dplyr) `,
         q` library(Cairo) `,
-        q` library(scales) `,
         q` library(ggthemes) `,
         q` library(grid) `,
 );
@@ -126,47 +176,49 @@ foreach my $mechanism (sort keys %data) {
         $R->set('speciation', $speciation);
         $R->run(q` pre$Speciation = speciation `);
         foreach my $type (sort keys %{$data{$mechanism}{$speciation}}) {
-            next if ($type eq "Inorganic"); ####removing inorganic as it is such a large term
-            next if ($type eq "CO"); ####Contribution practically the same throughout
-            next if ($type eq "Methane"); ###focusing on specified VOC
+            #next if ($type eq "Inorganic"); ####removing inorganic as it is such a large term
+            #next if ($type eq "CO"); ####Contribution practically the same throughout
+            #next if ($type eq "Methane"); ###focusing on specified VOC
             $R->set('type', $type);
             $R->set('Ox.production', $data{$mechanism}{$speciation}{$type}->at(0));
             $R->run(q` pre[type] = Ox.production `);
         }
         $R->run(q` pre = gather(pre, Type, Ox.Production, -Mechanism, -Speciation) `,
-                q` pre = pre %>% group_by(Speciation) %>% do(data.frame(Type = .$Type, Mechanism = .$Mechanism, Percent = .$Ox.Production / sum(.$Ox.Production))) `,
                 q` data = rbind(data, pre) `,
         );
         #my $p = $R->run(q` print(pre) `);
         #print $p, "\n";
     }
 }
-$R->set('filename', "Ox_Allocated_tagged_solvents_only_MCM.pdf");
+$R->set('filename', "Ox_Allocated_tagged_solvents_only_full_Ox_by_mechanism.pdf");
 $R->set('title', "Solvents Only: Cumulative Ox Production Budget");
-$R->run(q` data$Type = factor(data$Type, levels = c("Acids", "Alcohols", "Aldehydes", "Benzene", "Butanes", "Chlorinated", "Esters", "Ethane", "Ethene", "Ethers", "Higher alkanes", "Ketones", "Other alkenes, alkynes, dienes", "Other aromatics", "Pentanes", "Propane", "Propene", "Terpenes", "Toluene", "Trimethylbenzenes", "Xylenes")) `);
-#$R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
+$R->run(q` data$Type = factor(data$Type, levels = c("CO", "Methane", "Inorganic", "Acids", "Alcohols", "Aldehydes", "Benzene", "Butanes", "Chlorinated", "Esters", "Ethane", "Ethene", "Ethers", "Higher alkanes", "Ketones", "Other alkenes, alkynes, dienes", "Other aromatics", "Pentanes", "Propane", "Propene", "Terpenes", "Toluene", "Trimethylbenzenes", "Xylenes")) `);
+$R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
 
-$R->run(q` plot = ggplot(data, aes(x = Speciation, y = Percent, fill = Type)) `,
-        q` plot = plot + geom_bar(stat = "identity") `,
-        q` plot = plot + facet_wrap( ~ Mechanism) `,
+$R->run(q` plot = ggplot(data, aes(x = Speciation, y = Ox.Production, fill = Type)) `,
+        q` plot = plot + geom_bar(stat = "identity", position = "stack") `,
+        q` plot = plot + facet_wrap( ~ Mechanism, nrow = 1) `,
         q` plot = plot + theme_tufte() `,
         q` plot = plot + ggtitle(title) `,
         q` plot = plot + ylab("Ox Production (molecules cm-3)\n") `,
-        q` plot = plot + scale_y_continuous(expand = c(0, 0), labels = percent) `,
+        q` plot = plot + scale_y_continuous(expand = c(0, 0)) `,
         q` plot = plot + scale_x_discrete(expand = c(0, 0)) `,
         q` plot = plot + theme(axis.ticks.x = element_blank()) `,
         q` plot = plot + theme(legend.title = element_blank()) `,
         q` plot = plot + theme(axis.line = element_line(colour = "black")) `,
-        q` plot = plot + theme(plot.title = element_text(face = "bold")) `,
-        q` plot = plot + theme(axis.title.y = element_text(face = "bold")) `,
+        q` plot = plot + theme(plot.title = element_text(size = 24, face = "bold")) `,
+        q` plot = plot + theme(axis.title.y = element_text(size = 17, face = "bold")) `,
         q` plot = plot + theme(axis.title.x = element_blank()) `,
-        q` plot = plot + theme(strip.text = element_text(face = "bold")) `,
+        q` plot = plot + theme(strip.text = element_text(size = 22, face = "bold")) `,
+        q` plot = plot + theme(axis.text = element_text(size = 15)) `,
         q` plot = plot + theme(axis.text.x = element_text(face = "bold", angle = 45, hjust = 0.7, vjust = 0.8)) `,
         q` plot = plot + theme(panel.margin.x = unit(5, "mm")) `,
+        q` plot = plot + theme(legend.key.size = unit(7, "mm")) `,
+        q` plot = plot + theme(legend.text = element_text(size = 15)) `,
         q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(levels(data$Type))) `,
 );
 
-$R->run(q` CairoPDF(file = filename) `,
+$R->run(q` Cairo(file = filename, type = "pdf", bg = "transparent", units = "cm", width = 27, height = 20.3) `,
         q` print(plot) `,
         q` dev.off() `,
 );

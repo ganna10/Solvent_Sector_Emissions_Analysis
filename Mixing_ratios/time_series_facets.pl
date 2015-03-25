@@ -30,7 +30,13 @@ foreach my $mechanism (@mechanisms) {
     foreach my $speciation (@speciations) {
         my $boxmodel = "$base/$mechanism/${speciation}_Solvents_Only/boxmodel";
         my $mecca = MECCA->new($boxmodel);
-        my $tracer = $mecca->tracer($species);
+            my $lookup;
+            if ($mechanism eq "MOZART" and $species eq "HCHO") {
+                $lookup = "CH2O";
+            } else {
+                $lookup = $species;
+            }
+        my $tracer = $mecca->tracer($lookup);
         $data{$mechanism}{$speciation} = $tracer(1:$ntime-2);
     }
 }

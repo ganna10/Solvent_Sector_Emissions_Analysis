@@ -33,7 +33,13 @@ foreach my $mechanism (@mechanisms) {
         foreach my $run (@runs) {
             my $dir = "$base/$mechanism/${speciation}_$run";
             my $mecca = MECCA->new("$dir/boxmodel");
-            my $mr = $mecca->tracer($species); 
+            my $lookup;
+            if ($mechanism eq "MOZART" and $species eq "HCHO") {
+                $lookup = "CH2O";
+            } else {
+                $lookup = $species;
+            }
+            my $mr = $mecca->tracer($lookup); 
             $data{$run}{$mechanism}{$speciation} = $mr(1:$ntime-2);
         }
     }

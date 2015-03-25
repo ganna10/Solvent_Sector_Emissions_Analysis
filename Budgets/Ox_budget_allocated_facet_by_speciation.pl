@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 # Allocate Cumulative Ox production budgets back to categories used to defined speciations
-# Jane Coates 1/3/2015
+# Jane Coates 25/3/2015
 
 use strict;
 use diagnostics;
@@ -10,8 +10,8 @@ use PDL;
 use PDL::NiceSlice;
 use Statistics::R;
 
-my $base = "/local/home/coates/Solvent_Emissions";
-#my $base = "/work/users/jco/Solvent_Emissions";
+#my $base = "/local/home/coates/Solvent_Emissions";
+my $base = "/work/users/jco/Solvent_Emissions";
 my @mechanisms = qw( MCM MOZART RADM2 );
 my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
 my (%families, %weights, %data);
@@ -31,7 +31,7 @@ foreach my $mechanism (@mechanisms) {
             my $RO2_file = "$base/$mechanism/${speciation}_tagged_solvents_only/RO2_species.txt";
             my @no2_reservoirs = get_no2_reservoirs($kpp, $RO2_file);
             $families{"Ox"} = [ qw( O3 NO2 O O1D NO3 N2O5 HO2NO2 ), @no2_reservoirs ];
-            $weights{"Ox"} = { NO3 => 2, N2O5 => 5 };
+            $weights{"Ox"} = { NO3 => 2, N2O5 => 3 };
 
             foreach my $species (qw( Ox HO2x )) {
                 $kpp->family({
@@ -89,7 +89,7 @@ foreach my $mechanism (@mechanisms) {
                 my $RO2_file = "$base/$mechanism/$run/RO2_species.txt";
                 my @no2_reservoirs = get_no2_reservoirs($kpp, $RO2_file);
                 $families{"Ox"} = [ qw( O3 NO2 O O1D NO3 N2O5 HO2NO2 ), @no2_reservoirs ];
-                $weights{"Ox"} = { NO3 => 2, N2O5 => 5 };
+                $weights{"Ox"} = { NO3 => 2, N2O5 => 3 };
 
                 foreach my $species (qw( Ox HO2x )) {
                     $kpp->family({
@@ -176,9 +176,9 @@ foreach my $mechanism (sort keys %data) {
         $R->set('speciation', $speciation);
         $R->run(q` pre$Speciation = speciation `);
         foreach my $type (sort keys %{$data{$mechanism}{$speciation}}) {
-            next if ($type eq "Inorganic"); ####removing inorganic as it is such a large term
-            next if ($type eq "CO"); ####Contribution practically the same throughout
-            next if ($type eq "Methane"); ###focusing on specified VOC
+            #next if ($type eq "Inorganic"); ####removing inorganic as it is such a large term
+            #next if ($type eq "CO"); ####Contribution practically the same throughout
+            #next if ($type eq "Methane"); ###focusing on specified VOC
             $R->set('type', $type);
             $R->set('Ox.production', $data{$mechanism}{$speciation}{$type}->at(0));
             $R->run(q` pre[type] = Ox.production `);
@@ -192,7 +192,7 @@ foreach my $mechanism (sort keys %data) {
 }
 $R->set('filename', "Ox_Allocated_tagged_solvents_only_full_Ox.pdf");
 $R->set('title', "Solvents Only: Cumulative Ox Production Budget");
-$R->run(q` data$Type = factor(data$Type, levels = c("Acids", "Alcohols", "Aldehydes", "Benzene", "Butanes", "Chlorinated", "Esters", "Ethane", "Ethene", "Ethers", "Higher alkanes", "Ketones", "Other alkenes, alkynes, dienes", "Other aromatics", "Pentanes", "Propane", "Propene", "Terpenes", "Toluene", "Trimethylbenzenes", "Xylenes")) `);
+$R->run(q` data$Type = factor(data$Type, levels = c("CO", "Methane", "Inorganic", "Acids", "Alcohols", "Aldehydes", "Benzene", "Butanes", "Chlorinated", "Esters", "Ethane", "Ethene", "Ethers", "Higher alkanes", "Ketones", "Other alkenes, alkynes, dienes", "Other aromatics", "Pentanes", "Propane", "Propene", "Terpenes", "Toluene", "Trimethylbenzenes", "Xylenes")) `);
 $R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
 
 $R->run(q` plot = ggplot(data, aes(x = Mechanism, y = Ox.Production, fill = Type)) `,
