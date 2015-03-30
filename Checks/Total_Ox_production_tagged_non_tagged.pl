@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
 # Compare total Ox production in each mechanism, speciation in tagged and non-tagged solvent only runs
-# Version 0: Jane Coates 3/3/2015
-#
+# Version 0: Jane Coates 12/3/2015
+
 use strict;
 use diagnostics;
 use KPP;
@@ -10,6 +10,7 @@ use PDL;
 use PDL::NiceSlice;
 use Statistics::R;
 
+#my $base = "/work/users/jco/Solvent_Emissions";
 my $base = "/local/home/coates/Solvent_Emissions";
 my @mechanisms = qw( MCM MOZART RADM2 );
 my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
@@ -68,9 +69,12 @@ $R->run(q` plot = ggplot(data, aes(x = Speciation, y = Total.Prod, fill = Run)) 
         q` plot = plot + theme_tufte() `,
         q` plot = plot + ylab("Total Ox Production (molecules cm-3)") `,
         q` plot = plot + theme(axis.line = element_line(colour = "black")) `,
-        q` plot = plot + theme(plot.title = element_text(face = "bold")) `,
-        q` plot = plot + theme(strip.text = element_text(face = "bold")) `,
-        q` plot = plot + theme(axis.title = element_text(face = "bold")) `,
+        q` plot = plot + theme(strip.text = element_text(size = 22, face = "bold")) `,
+        q` plot = plot + theme(plot.title = element_text(size = 24, face = "bold")) `,
+        q` plot = plot + theme(axis.title = element_text(size = 17, face = "bold")) `,
+        q` plot = plot + theme(axis.text = element_text(size = 15)) `,
+        q` plot = plot + theme(legend.text = element_text(size = 15)) `,
+        q` plot = plot + theme(legend.key.size = unit(7, "mm")) `,
         q` plot = plot + theme(axis.text.x = element_text(face = "bold", angle = 45, hjust = 0.8, vjust = 0.9)) `,
         q` plot = plot + theme(legend.title = element_blank()) `,
         q` plot = plot + theme(axis.title.x = element_blank()) `,
@@ -81,7 +85,7 @@ $R->run(q` plot = ggplot(data, aes(x = Speciation, y = Total.Prod, fill = Run)) 
         q` plot = plot + scale_fill_manual(values = my.colours) `,
 );
 
-$R->run(q` CairoPDF(file = "Ox_production_tagged_vs_non_tagged.pdf", width = 8.6, height = 6) `,
+$R->run(q` Cairo(file = "Ox_production_tagged_vs_non_tagged.pdf", type = "pdf", bg = "transparent", unit = "cm", width = 27, height = 20.3) `,
         q` print(plot) `,
         q` dev.off() `,
 );

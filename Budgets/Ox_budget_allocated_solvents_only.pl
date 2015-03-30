@@ -11,9 +11,9 @@ use PDL;
 use PDL::NiceSlice;
 use Statistics::R;
 
-#my $base = "/local/home/coates/Solvent_Emissions";
-my $base = "/work/users/jco/Solvent_Emissions";
-my @mechanisms = qw( MOZART RADM2 );
+my $base = "/local/home/coates/Solvent_Emissions";
+#my $base = "/work/users/jco/Solvent_Emissions";
+my @mechanisms = qw( MCM );
 my @speciations = qw( TNO );
 #my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
 my (%families, %weights, %data);
@@ -117,7 +117,7 @@ foreach my $mechanism (@mechanisms) {
         } else {
             my $mcm_base = "$base/$mechanism";
             opendir DIR, $mcm_base or die "can't open $mcm_base : $!";
-            my @runs = grep { $_ =~ /${speciation}_tagged_solvents_only/ } readdir DIR;
+            my @runs = grep { $_ =~ /${speciation}_tagged_solvents_only_alkanes/ } readdir DIR;
             closedir DIR;
             my $no_runs = scalar @runs;
             foreach my $run (@runs) {
@@ -125,6 +125,10 @@ foreach my $mechanism (@mechanisms) {
                 my $mecca = MECCA->new($boxmodel);
                 my $eqn = "$base/$mechanism/$run/gas.eqn";
                 my $kpp = KPP->new($eqn);
+                my $RO2_file = "$base/$mechanism/$run/RO2_species.txt";
+                my @no2_reservoirs = get_no2_reservoirs($kpp, $RO2_file);
+                $families{"Ox"} = [ qw( O3 NO2 O O1D NO3 N2O5 HO2NO2 ), @no2_reservoirs ];
+                $weights{"Ox"} = { NO3 => 2, N2O5 => 3 };
                 $data{$mechanism}{$speciation}{$run} = get_data($mecca, $kpp, $mechanism, $speciation, $run, $no_runs);
             }
         }
@@ -136,8 +140,12 @@ foreach my $speciation (keys %{$data{"MCM"}}) {
     foreach my $run (keys %{$data{'MCM'}{$speciation}}) {
         foreach my $process (sort keys %{$data{'MCM'}{$speciation}{$run}}) {
             $allocated{$process} += $data{'MCM'}{$speciation}{$run}{$process};
+            print "\t$run\n";
+            print "\t$process : $data{'MCM'}{$speciation}{$run}{$process}\n"; 
         }
     }
+    print "\n";
+    print "$_ : $allocated{$_}\n" foreach keys %allocated;
     $data{'MCM'}{$speciation} = \%allocated;
 }
 
@@ -427,13 +435,14 @@ sub get_data {
             }
         } else {
             my $category = get_category($process, $mechanism, $speciation);
-            if ($process eq "CH4") {
+            if ($process eq "CH4" or $process eq "CO" or $process eq "Inorganic") {
                 $final_categories{$category} += $sum / $no_runs;
             } else {
                 $final_categories{$category} += $sum;
             }
         }
     }
-    #print "$_ : $final_categories{$_}\n" foreach keys %final_categories;
+    print "$run\n";
+    print "$_ : $final_categories{$_}\n" foreach keys %final_categories;
     return \%final_categories;
 }
