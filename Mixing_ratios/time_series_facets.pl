@@ -73,12 +73,11 @@ foreach my $mechanism (sort keys %data) {
 $R->run(q` my.colours = c("MCM" = "#6c254f", "MOZART" = "#ef6638", "RADM2" = "#0e5c28") `);
 $R->run(q` plot = ggplot(data, aes(x = Time, y = Mixing.Ratio, colour = Mechanism, group = Mechanism)) `,
         q` plot = plot + geom_line() `,
-        q` plot = plot + facet_wrap( ~ Speciation, scales = "free") `,
+        q` plot = plot + facet_wrap( ~ Speciation, scales = "free_x") `,
         q` plot = plot + theme_tufte() `,
         q` plot = plot + ylab("Mixing Ratio (ppbv)") `,
         q` plot = plot + xlab("Time (days)") `,
         q` plot = plot + scale_x_continuous(limits = c(0, 7), breaks = seq(0, 7, 1), expand = c(0, 0)) `,
-        q` plot = plot + scale_y_continuous(limits = c(35, 105), breaks = seq(35, 105, 10), expand = c(0, 0)) `,
         q` plot = plot + ggtitle(title) `,
         q` plot = plot + theme(axis.line = element_line(colour = "black")) `,
         q` plot = plot + theme(strip.text = element_text(face = "bold")) `,

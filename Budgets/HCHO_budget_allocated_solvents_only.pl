@@ -1,6 +1,7 @@
 #! /usr/bin/env perl
 # Allocate HCHO production budgets to speciation categories for VOCs
 # Version 0: Jane Coates 25/3/2015
+# Version 1: Jane Coates 4/4/2015 Correcting EMEP, MOZART allocation and general updates
 
 use strict;
 use diagnostics;
@@ -12,8 +13,10 @@ use Statistics::R;
 
 my $base = "/local/home/coates/Solvent_Emissions";
 #my $base = "/work/users/jco/Solvent_Emissions";
+#my @mechanisms = qw( MCM );
 my @mechanisms = qw( MCM MOZART RADM2 );
 my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
+#my @speciations = qw( IPCC );
 my (%families, %weights, %data);
 
 my %category_mapping = (
@@ -23,6 +26,9 @@ my %category_mapping = (
                     },
         IPCC    => {    BIGALK  => [ '0.341 Butanes', '0.008 Chlorinated', '0.111 Esters', '0.033 Ethers', '0.271 Higher_alkanes', '0.237 Pentanes' ],
                         TOLUENE => [ '0.244 Benzene', '0.164 Other_aromatics', '0.339 Toluene', '0.037 Trimethylbenzenes', '0.216 Xylenes' ],
+                    },
+        EMEP  =>    {   BIGALK  => [ '1.0 Butanes' ],
+                        TOLUENE => [ '1.0 Xylenes' ],
                     },
         DE94    =>  {   BIGALK  => [ '0.277 Butanes', '0.037 Chlorinated', '0.200 Esters', '0.023 Ethers', '0.462 Higher_alkanes' ],
                         TOLUENE => [ '0.259 Other_aromatics', '0.337 Toluene', '0.134 Trimethylbenzenes', '0.270 Xylenes' ],
@@ -67,6 +73,7 @@ my %category_mapping = (
         GR95    =>  {   HC3     => [ '0.753 Alcohols', '0.093 Chlorinated', '0.155 Esters' ],
                         HC5     => [ '0.508 Esters', '0.492 Ketones' ],
                         HC8     => [ '0.086 Alcohols', '0.914 Higher_alkanes' ],
+                        OLT     => [ '1.0 Other_alkenes,_alkynes,_dienes'],
                         TOL     => [ '0.014 Benzene', '0.526 Other_aromatics', '0.460 Toluene' ],
                         XYL     => [ '0.615 Other_aromatics', '0.244 Trimethylbenzenes', '0.141 Xylenes' ],
                     },
@@ -74,6 +81,7 @@ my %category_mapping = (
                         HC5     => [ '0.932 Esters', '0.068 Ketones' ],
                         HC8     => [ '0.402 Alcohols', '0.598 Higher_alkanes' ],
                         KET     => [ '0.007 Alcohols', '0.993 Ketones' ],
+                        OLT     => [ '1.0 Other_alkenes,_alkynes,_dienes'],
                         TOL     => [ '0.728 Other_aromatics', '0.272 Toluene' ],
                         XYL     => [ '0.596 Other_aromatics', '0.236 Trimethylbenzenes', '0.168 Xylenes' ],
                     },
@@ -183,7 +191,7 @@ $R->run(q` plot.lines = function () { list( theme_tufte() ,
                                             theme(axis.title.y = element_text(face = "bold")) ,
                                             theme(axis.title.x = element_blank()) ,
                                             theme(strip.text = element_text(face = "bold")) ,
-                                            theme(axis.text.x = element_text(face = "bold", angle = 45, hjust = 0.7, vjust = 1.0)) ,
+                                            theme(axis.text.x = element_text(face = "bold", angle = 45, hjust = 0.7, vjust = 0.8)) ,
                                             scale_fill_manual(values = my.colours, limits = rev(levels(data$Process))) ,
                                             theme(panel.margin = unit(5, "mm")) ) } `);
 
@@ -258,7 +266,6 @@ sub get_tagged_species {
     close $file;
     foreach my $line (@lines) {
         next unless ($line =~ /^$lookup/);
-        next if ($line =~ /_notag/);
         $line =~ s/ = IGNORE.*$//;
         push @matches, $line;
     }
@@ -304,7 +311,7 @@ sub get_category {
         $category = "Acids";
     } elsif ($process eq "KET" or $process =~ /MEK|CH3COCH3|MIBK|CYHEXONE/) {
         $category = "Ketones";
-    } elsif ($process eq "ALD" or $process =~ /MACR|CH3CHO|C2H5CHO|C3H7CHO|IPRCHO|C4H9CHO|ACR|C4ALDB|HCHO|CH2O/) {
+    } elsif ($process eq "ALD" or $process =~ /MACR|CH3CHO|C2H5CHO|C3H7CHO|IPRCHO|C4H9CHO|ACR|C4ALDB|HCHO|^CH2O/) {
         $category = "Aldehydes";
     } elsif ($process =~ /C5H8|ISO|BIGENE|BUT1ENE|C2H2/) {
         $category = "Other alkenes, alkynes, dienes";
@@ -316,7 +323,7 @@ sub get_category {
         $category = "Propene";
     } elsif ($process =~ /C10H16|LIMONENE|PINENE|OLI/) {
         $category = "Terpenes";
-    } elsif ($process =~ /Inorganic|Emissions/) {
+    } elsif ($process =~ /Deposition|Inorganic|Emissions/) {
         $category = $process;
     } else {
         print "No category found for $process in $mechanism, $speciation\n";
@@ -353,8 +360,12 @@ sub get_data {
             my $reaction_string = $kpp->reaction_string($reaction);
             if ($reaction_string =~ /^CO \+ OH/) {
                 $production_rates{"CO"} += $rate(1:$ntime-2);
-            } else {
+            } elsif ($reaction_string =~ /UNITY = /) { 
                 $production_rates{"Emissions"} += $rate(1:$ntime-2);
+            } elsif ($reaction_string =~ /= UNITY/) {
+                $production_rates{"Deposition"} += $rate(1:$ntime-2);
+            } else {
+                $production_rates{"Inorganic"} += $rate(1:$ntime-2);
             }
         }
     }
@@ -371,12 +382,19 @@ sub get_data {
             my $reaction_string = $kpp->reaction_string($reaction);
             if ($reaction_string =~ /^CO \+ OH/) {
                 $consumption_rates{"CO"} += $rate(1:$ntime-2);
+            } elsif ($reaction_string =~ /UNITY = /) { 
+                $production_rates{"Emissions"} += $rate(1:$ntime-2);
+            } elsif ($reaction_string =~ /= UNITY/) {
+                $production_rates{"Deposition"} += $rate(1:$ntime-2);
             } else {
-                $consumption_rates{"Emissions"} += $rate(1:$ntime-2);
+                $production_rates{"Inorganic"} += $rate(1:$ntime-2);
             }
         }
     }
     remove_common_processes(\%production_rates, \%consumption_rates);
+    delete $production_rates{"notag"};
+    delete $production_rates{"Deposition"};
+    delete $production_rates{"Inorganic"};
     my %final_categories;
     foreach my $process (keys %production_rates) {
         #print "$process: ", $production_rates{$process}->sum, "\n";
@@ -393,22 +411,16 @@ sub get_data {
                     my $category = get_category($process, $mechanism, $speciation);
                     $final_categories{$category} += $production_rates{$process}->sum;
                 }
-            } else {
-                if ($mechanism eq "MOZART" and $speciation eq "EMEP") {
-                    my $category = get_category($process, $mechanism, $speciation);
-                    $final_categories{$category} += $production_rates{$process}->sum;
-                } else {
-                    print "No mapping in $mechanism and $speciation\n";
-                }
             }
         } else {
             my $category = get_category($process, $mechanism, $speciation);
-            if ($process eq "CH4") {
+            if ($process eq "CH4" or $process eq "Emissions") {
                 $final_categories{$category} += $sum / $no_runs;
             } else {
                 $final_categories{$category} += $sum;
             }
         }
     }
+    #print "$_\n" foreach keys %final_categories;
     return \%final_categories;
 }

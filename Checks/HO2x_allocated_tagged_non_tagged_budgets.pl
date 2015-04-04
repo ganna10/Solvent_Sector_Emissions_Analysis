@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
-# Allocate Cumulative HO2x production budgets back to categories used to defined speciations
-# Jane Coates 4/4/2015
+# Compare allocated production budgets of HO2x in tagged and non-tagged runs.
+# Version 0: Jane Coates 31/3/2015
 
 use strict;
 use diagnostics;
@@ -10,16 +10,14 @@ use PDL;
 use PDL::NiceSlice;
 use Statistics::R;
 
-my $base = "/local/home/coates/Solvent_Emissions";
-#my $base = "/work/users/jco/Solvent_Emissions";
-my @mechanisms = qw( MCM MOZART RADM2 );
-#my @speciations = qw( UK08 );
-my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
+#my $base = "/local/home/coates/Solvent_Emissions";
+my $base = "/work/users/jco/Solvent_Emissions";
+my @mechanisms = qw( MCM );
+my @speciations = qw( GR05 );
+#my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
+my @runs = qw( tagged_solvents_only );
 my (%families, %weights, %data);
 $families{"HO2x"} = [ qw( HO2 HO2NO2 ) ];
-
-my $mecca = MECCA->new("$base/RADM2/TNO_Solvents_Only/boxmodel");
-my $ntime = $mecca->time->nelem;
 
 my %category_mapping = (
     MOZART  =>  {
@@ -28,9 +26,6 @@ my %category_mapping = (
                     },
         IPCC    => {    BIGALK  => [ '0.341 Butanes', '0.008 Chlorinated', '0.111 Esters', '0.033 Ethers', '0.271 Higher_alkanes', '0.237 Pentanes' ],
                         TOLUENE => [ '0.244 Benzene', '0.164 Other_aromatics', '0.339 Toluene', '0.037 Trimethylbenzenes', '0.216 Xylenes' ],
-                    },
-        EMEP  =>    {   BIGALK  => [ '1.0 Butanes' ],
-                        TOLUENE => [ '1.0 Xylenes' ],
                     },
         DE94    =>  {   BIGALK  => [ '0.277 Butanes', '0.037 Chlorinated', '0.200 Esters', '0.023 Ethers', '0.462 Higher_alkanes' ],
                         TOLUENE => [ '0.259 Other_aromatics', '0.337 Toluene', '0.134 Trimethylbenzenes', '0.270 Xylenes' ],
@@ -75,7 +70,6 @@ my %category_mapping = (
         GR95    =>  {   HC3     => [ '0.753 Alcohols', '0.093 Chlorinated', '0.155 Esters' ],
                         HC5     => [ '0.508 Esters', '0.492 Ketones' ],
                         HC8     => [ '0.086 Alcohols', '0.914 Higher_alkanes' ],
-                        OLT     => [ '1.0 Other_alkenes,_alkynes,_dienes'],
                         TOL     => [ '0.014 Benzene', '0.526 Other_aromatics', '0.460 Toluene' ],
                         XYL     => [ '0.615 Other_aromatics', '0.244 Trimethylbenzenes', '0.141 Xylenes' ],
                     },
@@ -83,7 +77,6 @@ my %category_mapping = (
                         HC5     => [ '0.932 Esters', '0.068 Ketones' ],
                         HC8     => [ '0.402 Alcohols', '0.598 Higher_alkanes' ],
                         KET     => [ '0.007 Alcohols', '0.993 Ketones' ],
-                        OLT     => [ '1.0 Other_alkenes,_alkynes,_dienes'],
                         TOL     => [ '0.728 Other_aromatics', '0.272 Toluene' ],
                         XYL     => [ '0.596 Other_aromatics', '0.236 Trimethylbenzenes', '0.168 Xylenes' ],
                     },
@@ -104,115 +97,208 @@ my %category_mapping = (
                 }
 );
 
-
 foreach my $mechanism (@mechanisms) {
     foreach my $speciation (@speciations) {
-        my (%production_rates, %consumption_rates);
-        if ($mechanism =~ /MOZART|RADM2/) { 
-            my $boxmodel = "$base/$mechanism/${speciation}_tagged_solvents_only/boxmodel";
-            my $mecca = MECCA->new($boxmodel);
-            my $eqn_file = "$base/$mechanism/${speciation}_tagged_solvents_only/gas.eqn";
-            my $kpp = KPP->new($eqn_file); 
-            $data{$mechanism}{$speciation} = get_data($mecca, $kpp, $mechanism, $speciation);
-        } elsif ($mechanism =~ /MCM/) {
-            my $dir = "$base/$mechanism";
-            opendir DIR, $dir or die "Can't open $dir : $!";
-            my @runs = grep { $_ =~ /${speciation}_tagged/ } readdir DIR;
-            closedir DIR;
-            my $run_number = scalar @runs;
-            foreach my $run (@runs) {
-                my $boxmodel = "$base/$mechanism/$run/boxmodel";
-                my $mecca = MECCA->new($boxmodel);
-                my $eqn_file = "$base/$mechanism/$run/gas.eqn";
-                my $kpp = KPP->new($eqn_file); 
-                $data{$mechanism}{$speciation}{$run} = get_data($mecca, $kpp, $mechanism, $speciation, $run, $run_number);
+        foreach my $run (@runs) {
+            my ($boxmodel, $mecca, $eqn, $kpp, $dir);
+            if ($mechanism eq "MCM" and $run =~ /tagged/) {
+                opendir DIR, "$base/$mechanism" or die "Can't open dir : $!";
+                my @dirs = grep { $_ =~ /${speciation}_$run/ } readdir DIR;
+                closedir DIR;
+                my $no_dirs = scalar @dirs;
+                my $data;
+                foreach my $directory (@dirs) {
+                    $dir = "$base/$mechanism/$directory";
+                    $boxmodel = "$dir/boxmodel";
+                    $mecca = MECCA->new($boxmodel);
+                    $eqn = "$dir/gas.eqn";
+                    $kpp = KPP->new($eqn);
+                    $data{$mechanism}{$speciation}{$run}{$dir} = get_data($mecca, $kpp, $mechanism, $speciation, $run, $dir, $no_dirs);
+                }
+            } else {
+                $boxmodel = "$base/$mechanism/${speciation}_$run/boxmodel";
+                $mecca = MECCA->new($boxmodel);
+                $eqn = "$base/$mechanism/${speciation}_$run/gas.eqn";
+                $kpp = KPP->new($eqn);
+                $data{$mechanism}{$speciation}{$run} = get_data($mecca, $kpp, $mechanism, $speciation, $run);
             }
         }
     }
 }
-
-foreach my $speciation (keys %{$data{"MCM"}}) {
+foreach my $speciation (sort keys %{$data{"MCM"}}) {
     my %allocated;
-    foreach my $run (keys %{$data{'MCM'}{$speciation}}) {
-        foreach my $process (sort keys %{$data{'MCM'}{$speciation}{$run}}) {
-            $allocated{$process} += $data{'MCM'}{$speciation}{$run}{$process};
+    foreach my $run (sort keys %{$data{"MCM"}{$speciation}}) {
+        next unless ($run =~ /tagged/);
+        foreach my $dir (sort keys %{$data{'MCM'}{$speciation}{$run}}) {
+            foreach my $item (sort keys %{$data{'MCM'}{$speciation}{$run}{$dir}}) {
+                $allocated{$item} += $data{'MCM'}{$speciation}{$run}{$dir}{$item};
+            }
         }
+        $data{'MCM'}{$speciation}{$run} = \%allocated;
     }
-    $data{'MCM'}{$speciation} = \%allocated;
 }
 
 my $R = Statistics::R->new();
 $R->run(q` library(ggplot2) `,
-        q` library(tidyr) `,
         q` library(Cairo) `,
+        q` library(tidyr) `,
         q` library(ggthemes) `,
         q` library(grid) `,
 );
-$R->run(q` my.colours = c("Acids" = "#cc6329", "Alcohols" = "#6c254f", "Benzene" = "#8c6238", "Butanes" = "#86b650", "Chlorinated" = "#f9c500", "CO" = "#898989", "Esters" = "#f3aa7f", "Ethane" = "#77aecc", "Ethene" = "#1c3e3d", "Ethers" = "#ba8b01", "Higher alkanes" = "#0e5c28", "Ketones" = "#ef6638", "Aldehydes" = "#8ed6d2", "Other alkenes, alkynes, dienes" = "#b569b3", "Other aromatics" = "#e7e85e", "Others" = "#2b9eb3", "Pentanes" = "#8c1531", "Propane" = "#9bb18d", "Propene" = "#623812", "Terpenes" = "#c9a415", "Toluene" = "#0352cb", "Trimethylbenzenes" = "#ae4901", "Xylenes" = "#1b695b", "CO" = "#6d6537", "Methane" = "#0c3f78", "Inorganic" = "#000000") `);
 
 $R->run(q` data = data.frame() `);
 foreach my $mechanism (sort keys %data) {
-    #print "$mechanism\n";
     $R->set('mechanism', $mechanism);
+    #print "$mechanism\n";
     foreach my $speciation (sort keys %{$data{$mechanism}}) {
-        #print "\t$speciation\n";
-        $R->run(q` pre = data.frame(Mechanism = mechanism) `);
         $R->set('speciation', $speciation);
-        $R->run(q` pre$Speciation = speciation `);
-        foreach my $type (sort keys %{$data{$mechanism}{$speciation}}) {
-            #print "\t\t$type\n";
-            $R->set('type', $type);
-            $R->set('HO2x.production', $data{$mechanism}{$speciation}{$type});
-            $R->run(q` pre[type] = HO2x.production `);
+        #print "\t$speciation\n";
+        foreach my $run_type (sort keys %{$data{$mechanism}{$speciation}}) {
+            #print "\t\t$run_type : $data{$mechanism}{$speciation}{$run_type}\n";
+            $R->run(q` pre = data.frame(Mechanism = mechanism) `);
+            $R->set('run', $run_type);
+            $R->run(q` pre$Run = run `);
+            foreach my $process (sort keys %{$data{$mechanism}{$speciation}{$run_type}}) {
+                #print "$process: $data{$mechanism}{$speciation}{$run_type}{$process}\n";
+                $R->set('process', $process);
+                $R->set('total.prod', $data{$mechanism}{$speciation}{$run_type}{$process});
+                $R->run(q` pre[process] = total.prod `);
+            }
+            $R->run(q` pre$Speciation = speciation `);
+            $R->run(q` pre = gather(pre, Process, Total.Prod, -Run, -Mechanism, -Speciation) `,
+                    q` data = rbind(data, pre) `,
+            );
         }
-        $R->run(q` pre = gather(pre, Type, HO2x.Production, -Mechanism, -Speciation) `,
-                q` data = rbind(data, pre) `,
-        );
-        #my $p = $R->run(q` print(pre) `);
-        #print $p, "\n";
     }
 }
-$R->run(q` data$Type = factor(data$Type, levels = c("Acids", "Alcohols", "Aldehydes", "Benzene", "Butanes", "CO", "Chlorinated", "Esters", "Ethane", "Ethene", "Ethers", "Higher alkanes", "Inorganic", "Ketones", "Methane", "Other alkenes, alkynes, dienes", "Other aromatics", "Pentanes", "Propane", "Propene", "Terpenes", "Toluene", "Trimethylbenzenes", "Xylenes")) `);
+#my $p = $R->run(q` print(data) `);
+#print $p, "\n";
 $R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
-$R->run(q` plot.lines = function () { list( theme_tufte() ,
-                                            ggtitle("Cumulative HO2x Production Budget") ,
-                                            ylab("HO2x Production (molecules cm-3)") ,
-                                            scale_y_continuous(expand = c(0, 0)) ,
-                                            scale_x_discrete(expand = c(0, 0)) ,
-                                            theme(axis.ticks.x = element_blank()) ,
-                                            theme(legend.title = element_blank()) ,
-                                            theme(axis.line = element_line(colour = "black")) ,
-                                            theme(plot.title = element_text(face = "bold")) ,
-                                            theme(axis.title.y = element_text(face = "bold")) ,
-                                            theme(axis.title.x = element_blank()) ,
-                                            theme(strip.text = element_text(face = "bold")) ,
-                                            theme(axis.text.x = element_text(face = "bold", angle = 45, hjust = 0.7, vjust = 0.8)) ,
-                                            scale_fill_manual(values = my.colours, limits = rev(levels(data$Type))) ,
-                                            theme(panel.margin = unit(5, "mm")) ) } `);
+#$R->run(q` my.colours = c("Non-Tagged" = "#2b9eb3", "Tagged" = "#ef6638") `);
 
-$R->run(q` plot = ggplot(data, aes(x = Speciation, y = HO2x.Production, fill = Type)) `,
+$R->run(q` plot = ggplot(data, aes(x = Run, y = Total.Prod, fill = Process)) `,
         q` plot = plot + geom_bar(stat = "identity") `,
-        q` plot = plot + facet_wrap( ~ Mechanism, nrow = 1 ) `,
-        q` plot = plot + plot.lines() `,
+        q` plot = plot + facet_grid(Mechanism ~ Speciation ) `,
+        q` plot = plot + scale_y_continuous(expand = c(0, 0)) `,
+        q` plot = plot + scale_x_discrete(expand = c(0, 0)) `,
+        q` plot = plot + ggtitle("Total HO2x Production after 7 Days") `,
+        q` plot = plot + theme_tufte() `,
+        q` plot = plot + ylab("Total HO2x Production (molecules cm-3)") `,
+        q` plot = plot + theme(axis.line = element_line(colour = "black")) `,
+        q` plot = plot + theme(axis.text.x = element_text(face = "bold", angle = 45, hjust = 0.8, vjust = 0.9)) `,
+        q` plot = plot + theme(legend.title = element_blank()) `,
+        q` plot = plot + theme(axis.title.x = element_blank()) `,
+        q` plot = plot + theme(axis.ticks.x = element_blank()) `,
+        #q` plot = plot + scale_fill_manual(values = my.colours) `,
 );
 
-$R->run(q` CairoPDF(file = "Cumulative_HO2x_budget_allocated_facet_mechanism.pdf", width = 8.6, height = 6) `,
-        q` print(plot) `,
-        q` dev.off() `,
-);
-
-$R->run(q` plot = ggplot(data, aes(x = Mechanism, y = HO2x.Production, fill = Type)) `,
-        q` plot = plot + geom_bar(stat = "identity") `,
-        q` plot = plot + facet_wrap( ~ Speciation, nrow = 2 ) `,
-        q` plot = plot + plot.lines() `,
-);
-
-$R->run(q` CairoPDF(file = "Cumulative_HO2x_budget_allocated_facet_speciation.pdf", width = 8.6, height = 6) `,
+$R->run(q` CairoPDF(file = "HO2x_allocated_production_tagged_vs_non_tagged.pdf") `,
         q` print(plot) `,
         q` dev.off() `,
 );
 
 $R->stop();
+
+sub get_data {
+    my ($mecca, $kpp, $mechanism, $speciation, $run, $dir, $no_dirs) = @_;
+    my $ntime = $mecca->time->nelem;
+    $no_dirs = 1 unless (defined $no_dirs);
+
+    my (%production_rates, %consumption_rates, $producers, $producer_yields, $consumers, $consumer_yields);
+    foreach my $species (qw( HO2x )) {
+        $kpp->family({
+                name    => $species,
+                members => $families{$species},
+                weights => $weights{$species},
+        });
+        $producers = $kpp->producing($species);
+        $producer_yields = $kpp->effect_on($species, $producers); 
+        $consumers = $kpp->consuming($species);
+        $consumer_yields = $kpp->effect_on($species, $consumers); 
+        print "No producers found in $run, $speciation and $mechanism\n" if (@$producers == 0);
+        print "No consumers found in $run, $speciation and $mechanism\n" if (@$consumers == 0);
+
+        for (0..$#$producers) {
+            my $reaction = $producers->[$_];
+            next if ($reaction =~ /_notag/);
+            my $reaction_number = $kpp->reaction_number($reaction);
+            my $rate = $mecca->rate($reaction_number) * $producer_yields->[$_];
+            next if ($rate->sum == 0); 
+            my ($number, $parent) = split /_/, $reaction;
+            if (defined $parent) {
+                $production_rates{$species}{$parent} += $rate(1:$ntime-2);
+            } else {
+                my $reaction_string = $kpp->reaction_string($reaction);
+                next if ($reaction_string =~ /_notag/);
+                my ($reactants, $products) = split / = /, $reaction_string;
+                $production_rates{$species}{$reactants} += $rate(1:$ntime-2);
+            }
+        }
+
+        for (0..$#$consumers) {
+            my $reaction = $consumers->[$_];
+            next if ($reaction =~ /_notag/);
+            my $reaction_number = $kpp->reaction_number($reaction);
+            my $rate = $mecca->rate($reaction_number) * $consumer_yields->[$_];
+            next if ($rate->sum == 0); 
+            my ($number, $parent) = split /_/, $reaction;
+            if (defined $parent) {
+                $consumption_rates{$species}{$parent} += $rate(1:$ntime-2);
+            } else {
+                my $reaction_string = $kpp->reaction_string($reaction);
+                next if ($reaction_string =~ /_notag/);
+                my ($reactants, $products) = split / = /, $reaction_string;
+                $consumption_rates{$species}{$reactants} += $rate(1:$ntime-2);
+            }
+        }
+    }
+
+    print $dir, "\n";
+    remove_common_processes($production_rates{"HO2x"}, $consumption_rates{"HO2x"});
+    my $total_ho2x_production;
+    $total_ho2x_production += $production_rates{"HO2x"}{$_} foreach (keys %{$production_rates{"HO2x"}});
+    print $total_ho2x_production->sum, "\n";
+        
+    my %final_categories;
+    foreach my $process (keys %{$production_rates{"HO2x"}}) {
+        #print "$process\n";
+        #print "$process: ", $production_rates{"HO2x"}{$process}, "\n";
+        $production_rates{"HO2x"}{$process} = $production_rates{"HO2x"}{$process}->sum;
+        if (exists $category_mapping{$mechanism}) {
+            if (exists $category_mapping{$mechanism}{$speciation}) {
+                if (exists $category_mapping{$mechanism}{$speciation}{$process}) {
+                    foreach my $entry (@{$category_mapping{$mechanism}{$speciation}{$process}}) {
+                        my ($factor, $category) = split / /, $entry;
+                        $category =~ s/_/ /g;
+                        $final_categories{$category} += $factor * $production_rates{"HO2x"}{$process};
+                    }
+                } else {
+                    my $category = get_category($process, $mechanism, $speciation);
+                    $final_categories{$category} += $production_rates{"HO2x"}{$process};
+                }
+            } else {
+                if ($mechanism eq "MOZART" and $speciation eq "EMEP") {
+                    my $category = get_category($process, $mechanism, $speciation);
+                    #print "$process => $category\n";
+                    $final_categories{$category} += $production_rates{"HO2x"}{$process};
+                } else {
+                    print "No mapping in $mechanism and $speciation\n";
+                }
+            }
+        } else {
+            my $category = get_category($process, $mechanism, $speciation);
+            $final_categories{$category} += $production_rates{"HO2x"}{$process};
+        }
+    }
+    foreach my $category (keys %final_categories) {
+        if ($category eq "Methane" or $category eq "Inorganic" or $category eq "CO") {
+            #print "$category and $no_dirs\n";
+            $final_categories{$category} /= $no_dirs;
+        } 
+    }
+    #print "$_: $final_categories{$_}\n" foreach keys %final_categories;
+    return \%final_categories;
+}
 
 sub remove_common_processes {
     my ($production, $consumption) = @_;
@@ -246,88 +332,6 @@ sub remove_common_processes {
         }
     }
 } 
-
-sub get_data {
-    my ($mecca, $kpp, $mechanism, $speciation, $dir, $no_runs) = @_;
-    my (%production_rates, %consumption_rates);
-    $kpp->family({
-            name    => "HO2x",
-            members => $families{"HO2x"},
-            weights => $weights{"HO2x"},
-    });
-    my $producers = $kpp->producing("HO2x");
-    my $producer_yields = $kpp->effect_on("HO2x", $producers);
-    my $consumers = $kpp->consuming("HO2x");
-    my $consumer_yields = $kpp->effect_on("HO2x", $consumers);
-    print "No consumers in $mechanism and $speciation\n" if (@$consumers == 0);
-    print "No producers in $mechanism and $speciation\n" if (@$producers == 0);
-
-    for (0..$#$producers) {
-        my $reaction = $producers->[$_];
-        my $reaction_number = $kpp->reaction_number($reaction);
-        my $rate = $mecca->rate($reaction_number) * $producer_yields->[$_];
-        next if ($rate->sum == 0);
-        my ($number, $parent) = split /_/, $reaction;
-        if (defined $parent) {
-            $production_rates{$parent} += $rate(1:$ntime-2);
-        } else {
-            my ($reactants, $products) = split / = /, $kpp->reaction_string($reaction);
-            if ($products =~ /notag/) {
-                $production_rates{"notag"} += $rate(1:$ntime-2);
-            } else {
-                $production_rates{$reactants} += $rate(1:$ntime-2);
-            }
-        }
-    }
-
-    for (0..$#$consumers) {
-        my $reaction = $consumers->[$_];
-        my $reaction_number = $kpp->reaction_number($reaction);
-        my $rate = $mecca->rate($reaction_number) * $consumer_yields->[$_];
-        next if ($rate->sum == 0);
-        my ($number, $parent) = split /_/, $reaction;
-        if (defined $parent) {
-            $consumption_rates{$parent} += $rate(1:$ntime-2);
-        } else {
-            my ($reactants, $products) = split / = /, $kpp->reaction_string($reaction);
-            if ($products =~ /notag/) {
-                $consumption_rates{"notag"} += $rate(1:$ntime-2);
-            } else {
-                $consumption_rates{$reactants} += $rate(1:$ntime-2);
-            }
-        }
-    }
-    remove_common_processes(\%production_rates, \%consumption_rates);
-    delete $production_rates{"notag"};
-    my %final_categories;
-    foreach my $process (keys %production_rates) {
-        if (exists $category_mapping{$mechanism}) {
-            if (exists $category_mapping{$mechanism}{$speciation}) {
-                if (exists $category_mapping{$mechanism}{$speciation}{$process}) {
-                    foreach my $entry (@{$category_mapping{$mechanism}{$speciation}{$process}}) {
-                        my ($factor, $category) = split / /, $entry;
-                        $category =~ s/_/ /g;
-                        $final_categories{$category} += $factor * $production_rates{$process}->sum;
-                    }
-                } else {
-                    my $category = get_category($process, $mechanism, $speciation);
-                    $final_categories{$category} += $production_rates{$process}->sum;
-                }
-            }
-        } else {
-            my $category = get_category($process, $mechanism, $speciation);
-            $final_categories{$category} += $production_rates{$process}->sum;
-        }
-    }
-    if ($mechanism eq "MCM") {
-        foreach my $category (keys %final_categories) {
-            if ($category eq "Methane" or $category eq "CO" or $category eq "Inorganic") {
-                $final_categories{$category} /= $no_runs;
-            }
-        }
-    }
-    return \%final_categories;
-}
 
 sub get_category {
     my ($process, $mechanism, $speciation) = @_;
@@ -380,10 +384,32 @@ sub get_category {
         $category = "Propene";
     } elsif ($process =~ /C10H16|LIMONENE|PINENE|OLI/) {
         $category = "Terpenes";
-    } elsif ($process =~ /Deposition|Inorganic|Emissions/) {
+    } elsif ($process =~ /Inorganic|Emissions/) {
         $category = $process;
     } else {
-        print "No category found for $process in $mechanism, $speciation\n";
+        $category = "Inorganic";
+        #print "No category found for $process in $mechanism, $speciation\n";
     }
     return $category;
 }
+
+sub get_no2_reservoirs { #get species that are produced when radical species react with NO2
+    my ($kpp, $file) = @_; 
+    open my $in, '<:encoding(utf-8)', $file or die $!; 
+    my @ro2;
+    for (<$in>) {
+        push @ro2, split /\s+/, $_; 
+    }
+    close $in;
+    my @no2_reservoirs;
+    foreach my $ro2 (@ro2) {
+        my ($reactions) = $kpp->reacting_with($ro2, 'NO2');
+        foreach my $reaction (@$reactions) {
+            my ($products) = $kpp->products($reaction);
+            if (@$products == 1) {
+                push @no2_reservoirs, $products->[0];
+            }   
+        }   
+    }   
+    return @no2_reservoirs;
+} 

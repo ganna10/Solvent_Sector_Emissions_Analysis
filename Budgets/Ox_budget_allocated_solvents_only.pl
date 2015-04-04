@@ -1,7 +1,6 @@
 #! /usr/bin/env perl
 # Allocate Cumulative Ox production budgets back to categories used to defined speciations
-# Jane Coates 25/3/2015
-# Jane Coates 27/3/2015 plotting both facetting types in same script, including allocation of fractional contributions of MOZART and RADM2 to original categories, arranging code by including subroutine for data calculation
+# Version 0: Jane Coates 3/4/2015
 
 use strict;
 use diagnostics;
@@ -13,8 +12,8 @@ use Statistics::R;
 
 my $base = "/local/home/coates/Solvent_Emissions";
 #my $base = "/work/users/jco/Solvent_Emissions";
-my @mechanisms = qw( MCM );
-my @speciations = qw( TNO );
+my @mechanisms = qw( MCM MOZART RADM2 );
+my @speciations = qw( EMEP );
 #my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
 my (%families, %weights, %data);
 $families{"HO2x"} = [ qw( HO2 HO2NO2 ) ];
@@ -26,6 +25,9 @@ my %category_mapping = (
                     },
         IPCC    => {    BIGALK  => [ '0.341 Butanes', '0.008 Chlorinated', '0.111 Esters', '0.033 Ethers', '0.271 Higher_alkanes', '0.237 Pentanes' ],
                         TOLUENE => [ '0.244 Benzene', '0.164 Other_aromatics', '0.339 Toluene', '0.037 Trimethylbenzenes', '0.216 Xylenes' ],
+                    },
+        EMEP    =>  {   BIGALK  => [ '1.0 Butanes' ],
+                        TOLUENE => [ '1.0 Xylenes' ],
                     },
         DE94    =>  {   BIGALK  => [ '0.277 Butanes', '0.037 Chlorinated', '0.200 Esters', '0.023 Ethers', '0.462 Higher_alkanes' ],
                         TOLUENE => [ '0.259 Other_aromatics', '0.337 Toluene', '0.134 Trimethylbenzenes', '0.270 Xylenes' ],
@@ -117,7 +119,7 @@ foreach my $mechanism (@mechanisms) {
         } else {
             my $mcm_base = "$base/$mechanism";
             opendir DIR, $mcm_base or die "can't open $mcm_base : $!";
-            my @runs = grep { $_ =~ /${speciation}_tagged_solvents_only_alkanes/ } readdir DIR;
+            my @runs = grep { $_ =~ /${speciation}_tagged_solvents_only/ } readdir DIR;
             closedir DIR;
             my $no_runs = scalar @runs;
             foreach my $run (@runs) {
@@ -140,12 +142,8 @@ foreach my $speciation (keys %{$data{"MCM"}}) {
     foreach my $run (keys %{$data{'MCM'}{$speciation}}) {
         foreach my $process (sort keys %{$data{'MCM'}{$speciation}{$run}}) {
             $allocated{$process} += $data{'MCM'}{$speciation}{$run}{$process};
-            print "\t$run\n";
-            print "\t$process : $data{'MCM'}{$speciation}{$run}{$process}\n"; 
         }
     }
-    print "\n";
-    print "$_ : $allocated{$_}\n" foreach keys %allocated;
     $data{'MCM'}{$speciation} = \%allocated;
 }
 
@@ -178,6 +176,9 @@ foreach my $mechanism (sort keys %data) {
     }
 }
 
+my $p = $R->run(q` print(data) `);
+print $p, "\n";
+
 $R->run(q` my.colours = c("Acids" = "#cc6329", "Alcohols" = "#6c254f", "Benzene" = "#8c6238", "Butanes" = "#86b650", "Chlorinated" = "#f9c500", "CO" = "#898989", "Esters" = "#f3aa7f", "Ethane" = "#77aecc", "Ethene" = "#1c3e3d", "Ethers" = "#ba8b01", "Higher alkanes" = "#0e5c28", "Ketones" = "#ef6638", "Aldehydes" = "#8ed6d2", "Other alkenes, alkynes, dienes" = "#b569b3", "Other aromatics" = "#e7e85e", "Others" = "#2b9eb3", "Pentanes" = "#8c1531", "Propane" = "#9bb18d", "Propene" = "#623812", "Terpenes" = "#c9a415", "Toluene" = "#0352cb", "Trimethylbenzenes" = "#ae4901", "Xylenes" = "#1b695b", "CO" = "#6d6537", "Methane" = "#0c3f78", "Inorganic" = "#000000") `);
 $R->run(q` plot.lines = function () { list( theme_tufte() ,
                                             ggtitle("Cumulative Ox Production Budget") ,
@@ -191,7 +192,7 @@ $R->run(q` plot.lines = function () { list( theme_tufte() ,
                                             theme(axis.title.y = element_text(face = "bold")) ,
                                             theme(axis.title.x = element_blank()) ,
                                             theme(strip.text = element_text(face = "bold")) ,
-                                            theme(axis.text.x = element_text(face = "bold", angle = 45, hjust = 0.7, vjust = 1.0)) ,
+                                            theme(axis.text.x = element_text(face = "bold", angle = 45, hjust = 0.7, vjust = 0.8)) ,
                                             scale_fill_manual(values = my.colours, limits = rev(levels(data$Process))) ,
                                             theme(panel.margin = unit(5, "mm")) ) } `);
 
@@ -353,7 +354,6 @@ sub get_data {
 
         for (0..$#$producers) {
             my $reaction = $producers->[$_];
-            next if ($reaction =~ /notag/);
             my $reaction_number = $kpp->reaction_number($reaction);
             my $rate = $mecca->rate($reaction_number) * $producer_yields->[$_];
             next if ($rate->sum == 0);
@@ -362,7 +362,6 @@ sub get_data {
                 $production_rates{$species}{$parent} += $rate(1:$ntime-2);
             } else {
                 my $reaction_string = $kpp->reaction_string($reaction);
-                next if ($reaction_string =~ /notag/);
                 if ($reaction_string =~ /^CO \+ OH/) {
                     $production_rates{$species}{"CO"} += $rate(1:$ntime-2);
                 } else {
@@ -373,7 +372,6 @@ sub get_data {
 
         for (0..$#$consumers) {
             my $reaction = $consumers->[$_];
-            next if ($reaction =~ /notag/);
             my $reaction_number = $kpp->reaction_number($reaction);
             my $rate = $mecca->rate($reaction_number) * $consumer_yields->[$_];
             next if ($rate->sum == 0);
@@ -382,7 +380,6 @@ sub get_data {
                 $consumption_rates{$species}{$parent} += $rate(1:$ntime-2);
             } else {
                 my $reaction_string = $kpp->reaction_string($reaction);
-                next if ($reaction_string =~ /notag/);
                 if ($reaction_string =~ /^CO \+ OH/) {
                     $consumption_rates{$species}{"CO"} += $rate(1:$ntime-2);
                 } else {
@@ -390,8 +387,7 @@ sub get_data {
                 }
             }
         }
-    }
-
+    } 
     remove_common_processes($production_rates{"HO2x"}, $consumption_rates{"HO2x"});
     my $total_ho2x_production;
     $total_ho2x_production += $production_rates{"HO2x"}{$_} foreach (keys %{$production_rates{"HO2x"}});
@@ -399,50 +395,38 @@ sub get_data {
     foreach my $reaction (keys %{$production_rates{'HO2x'}}) {
         $production_rates{"Ox"}{$reaction} += $production_rates{"Ox"}{'HO2 + NO = NO2 + OH'} * $production_rates{'HO2x'}{$reaction} / $total_ho2x_production;
         $consumption_rates{"Ox"}{$reaction} += $consumption_rates{"Ox"}{'HO2 + O3 = OH'} * $consumption_rates{'HO2x'}{$reaction} / $total_ho2x_production; 
+        $consumption_rates{"Ox"}{$reaction} += $consumption_rates{"Ox"}{'HO2 + NO3 = NO2 + OH'} * $consumption_rates{'HO2x'}{$reaction} / $total_ho2x_production; 
     }
     delete $production_rates{"Ox"}{'HO2 + NO = NO2 + OH'};
     delete $consumption_rates{"Ox"}{'HO2 + O3 = OH'};
+    delete $consumption_rates{"Ox"}{'HO2 + NO3 = NO2 + OH'};
     remove_common_processes($production_rates{"Ox"}, $consumption_rates{"Ox"});
 
     my %final_categories;
     foreach my $process (keys %{$production_rates{'Ox'}}) {
-        my $sum = $production_rates{'Ox'}{$process}->sum;
-        #print "$process : $sum\n";
         if (exists $category_mapping{$mechanism}) {
-            #print "$mechanism\n";
             if (exists $category_mapping{$mechanism}{$speciation}) {
-                #print "\t$speciation\n";
                 if (exists $category_mapping{$mechanism}{$speciation}{$process}) {
-                    #print "\t\t$process\n";
                     foreach my $entry (@{$category_mapping{$mechanism}{$speciation}{$process}}) {
                         my ($factor, $category) = split / /, $entry;
-                        #print "\t\t\t$factor and $category\n";
                         $category =~ s/_/ /g;
-                        $final_categories{$category} += $factor * $sum;
+                        $final_categories{$category} += $factor * $production_rates{"Ox"}{$process}->sum;
                     }
                 } else {
                     my $category = get_category($process, $mechanism, $speciation);
-                    #print "\t\t\t$category and $sum\n";
                     $final_categories{$category} += $production_rates{'Ox'}{$process}->sum;
-                }
-            } else {
-                if ($mechanism eq "MOZART" and $speciation eq "EMEP") {
-                    my $category = get_category($process, $mechanism, $speciation);
-                    $final_categories{$category} += $production_rates{'Ox'}{$process}->sum;
-                } else {
-                    print "No mapping in $mechanism and $speciation\n";
                 }
             }
         } else {
             my $category = get_category($process, $mechanism, $speciation);
             if ($process eq "CH4" or $process eq "CO" or $process eq "Inorganic") {
-                $final_categories{$category} += $sum / $no_runs;
+                $final_categories{$category} += $production_rates{"Ox"}{$process}->sum / $no_runs;
             } else {
-                $final_categories{$category} += $sum;
+                $final_categories{$category} += $production_rates{"Ox"}{$process}->sum;
             }
         }
     }
-    print "$run\n";
-    print "$_ : $final_categories{$_}\n" foreach keys %final_categories;
+    #print "$run\n";
+    #print "$_ : $final_categories{$_}\n" foreach keys %final_categories;
     return \%final_categories;
 }
