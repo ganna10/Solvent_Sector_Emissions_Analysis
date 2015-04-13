@@ -11,9 +11,28 @@ use PDL::NiceSlice;
 use Statistics::R;
 
 my $base = "/local/home/coates/Solvent_Emissions";
-my @mechanisms = qw( MOZART RADM2 );
+my @mechanisms = qw( MCM MOZART RADM2 );
 my @speciations = qw( TNO );
+#my @speciations = qw( TNO IPCC EMEP DE94 UK98 UK08 );
 my %data;
+my %mapping = (
+    MOZART  =>  {   
+        TNO     => 0.676,
+        IPCC    => 0.676,
+        EMEP    => 1.000,
+        DE94    => 0.495,
+        UK98    => 0.630,
+        UK08    => 0.685,
+                },
+    RADM2   =>  {
+        TNO     => 0.183,
+        IPCC    => 0.057,
+        EMEP    => 0.273,
+        DE94    => 0.334,
+        UK98    => 0.448,
+        UK08    => 0.327,
+                },
+);
 
 my $mecca = MECCA->new("$base/RADM2/TNO_tagged_solvents_only/boxmodel");
 my $NTIME = $mecca->time->nelem;
@@ -24,6 +43,20 @@ my $N_DAYS = int $NTIME / $N_PER_DAY;
 foreach my $mechanism (@mechanisms) {
     foreach my $speciation (@speciations) {
         if ($mechanism eq "MCM") {
+            opendir DIR, "$base/$mechanism" or die "Can't open MCM directory\n";
+            my @dirs = grep { $_ =~ /${speciation}_tagged_solvents_only/ } readdir DIR;
+            closedir DIR;
+            foreach my $dir (@dirs) {
+                print "$dir\n";
+                my $directory = "$base/$mechanism/$dir";
+                my $boxmodel = "$directory/boxmodel";
+                my $mecca = MECCA->new($boxmodel);
+                my $eqn = "$directory/gas.eqn";
+                my $kpp = KPP->new($eqn);
+                my $carbon_file = "$directory/carbons.txt";
+                my $n_carbon = get_carbons($mechanism, $carbon_file);
+                $data{$mechanism}{$speciation}{$dir} = get_data($mecca, $kpp, $mechanism, $n_carbon);
+            }
         } else {
             my $boxmodel = "$base/$mechanism/${speciation}_tagged_solvents_only/boxmodel";
             my $mecca = MECCA->new($boxmodel);
@@ -34,6 +67,14 @@ foreach my $mechanism (@mechanisms) {
             $data{$mechanism}{$speciation} = get_data($mecca, $kpp, $mechanism, $n_carbon);
         }
     }
+}
+
+foreach my $speciation (keys %{$data{"MCM"}}) {
+    my $allocated;
+    foreach my $run (keys %{$data{'MCM'}{$speciation}}) {
+        $allocated += $data{'MCM'}{$speciation}{$run};
+    }
+    $data{'MCM'}{$speciation} = $allocated;
 }
 
 my $R = Statistics::R->new();
@@ -50,6 +91,12 @@ foreach my $mechanism (sort keys %data) {
     foreach my $speciation (sort keys %{$data{$mechanism}}) {
         print "\t$speciation : $data{$mechanism}{$speciation}\n";
         $R->set('speciation', $speciation);
+        if (exists $mapping{$mechanism}) {
+            print "$mechanism\n";
+            if (exists $mapping{$mechanism}{$speciation}) {
+                print "\t$speciation : $mapping{$mechanism}{$speciation}\n";
+            }
+        } 
         if ($mechanism eq "RADM2") {
             $R->set('c.loss', $data{$mechanism}{$speciation});
         } else {
@@ -63,12 +110,14 @@ foreach my $mechanism (sort keys %data) {
 }
 #my $p = $R->run(q` print(data) `);
 #print $p, "\n";
+$R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
 
 $R->run(q` plot = ggplot(data, aes(x = Mechanism, y = C.Loss)) `,
         q` plot = plot + geom_bar(stat = "identity") `,
         q` plot = plot + facet_wrap( ~ Speciation, nrow = 2) `,
         q` plot = plot + coord_flip() `,
         q` plot = plot + theme_tufte() `,
+        q` plot = plot + scale_x_discrete(limits = rev(c("MCM", "MOZART", "RADM2"))) `,
         q` plot = plot + theme(axis.line = element_line(colour = "black")) `,
         q` plot = plot + theme(axis.title.y = element_blank()) `,
         q` plot = plot + theme(strip.text = element_text(face = "bold")) `,
@@ -106,9 +155,15 @@ sub get_data {
         next if ($rate->sum == 0); # do not include reactions that do not occur 
         $carbon_loss_rate{$reaction_string} += $rate(1:$NTIME-2);
     }
-    my $overall_carbon_loss_rate = 0;
+    my $overall_carbon_loss_rate = zeroes(PDL::float, $NTIME-2);
     $overall_carbon_loss_rate += $carbon_loss_rate{$_} foreach (keys %carbon_loss_rate);
-    return $overall_carbon_loss_rate->sum;
+    if ($overall_carbon_loss_rate->sum == 0) {
+        print "no alcohols\n";
+        return 0;
+    } else {
+        print $overall_carbon_loss_rate->sum, "\n";
+        return $overall_carbon_loss_rate->sum;
+    }
 }
 
 sub get_total_C {
@@ -156,11 +211,11 @@ sub get_species_carbon {
 sub get_carbons {
     my ($run, $file) = @_;
     my $carbons;
-    if ($run =~ /MCMv3\.1|MCMv3\.2/) {
+    if ($run =~ /MCM/) {
         $carbons = mcm_n_carbon($file);
     } elsif ($run =~ /MOZART/) {
         $carbons = mozart_n_carbon($file);
-    } elsif ($run =~ /CRI|RADM2|RACM|CB/) {
+    } elsif ($run =~ /RADM2/) {
         $carbons = carbons_others($file);
     } else {
         print "$run doesn't match\n";

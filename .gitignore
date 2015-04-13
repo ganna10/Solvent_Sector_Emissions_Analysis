@@ -21,3 +21,5 @@ nytprof.out
 *.log
 *.csv
 *.txt
+Checks/remove_common_processes_test.pl
+Checks/remove_test.pdf

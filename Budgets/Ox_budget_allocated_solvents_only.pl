@@ -10,11 +10,11 @@ use PDL;
 use PDL::NiceSlice;
 use Statistics::R;
 
-my $base = "/local/home/coates/Solvent_Emissions";
-#my $base = "/work/users/jco/Solvent_Emissions";
+#my $base = "/local/home/coates/Solvent_Emissions";
+my $base = "/work/users/jco/Solvent_Emissions";
 my @mechanisms = qw( MCM MOZART RADM2 );
-my @speciations = qw( EMEP );
-#my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
+#my @speciations = qw( EMEP );
+my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
 my (%families, %weights, %data);
 $families{"HO2x"} = [ qw( HO2 HO2NO2 ) ];
 
@@ -26,7 +26,7 @@ my %category_mapping = (
         IPCC    => {    BIGALK  => [ '0.341 Butanes', '0.008 Chlorinated', '0.111 Esters', '0.033 Ethers', '0.271 Higher_alkanes', '0.237 Pentanes' ],
                         TOLUENE => [ '0.244 Benzene', '0.164 Other_aromatics', '0.339 Toluene', '0.037 Trimethylbenzenes', '0.216 Xylenes' ],
                     },
-        EMEP    =>  {   BIGALK  => [ '1.0 Butanes' ],
+        EMEP  =>    {   BIGALK  => [ '1.0 Butanes' ],
                         TOLUENE => [ '1.0 Xylenes' ],
                     },
         DE94    =>  {   BIGALK  => [ '0.277 Butanes', '0.037 Chlorinated', '0.200 Esters', '0.023 Ethers', '0.462 Higher_alkanes' ],
@@ -38,7 +38,7 @@ my %category_mapping = (
         GR05    =>  {   BIGALK  => [ '0.092 Chlorinated', '0.352 Esters', '0.556 Higher_alkanes' ],
                         TOLUENE => [ '0.691 Other_aromatics', '0.196 Toluene', '0.066 Trimethylbenzenes', '0.047 Xylenes' ],
                     },
-        UK98    =>  {   BIGALK  => [ '0.116 Butanes', '0.211 Chlorinated', '0.161 Esters', '0.089 Ethers', '0.317 Higher_alkanes' ],
+        UK98    =>  {   BIGALK  => [ '0.116 Butanes', '0.211 Chlorinated', '0.161 Esters', '0.089 Ethers', '0.317 Higher_alkanes', '0.107 Pentanes' ],
                         TOLUENE => [ '0.281 Other_aromatics', '0.384 Toluene', '0.093 Trimethylbenzenes', '0.242 Xylenes' ],
                     },
         UK08    =>  {   BIGALK  => [ '0.158 Butanes', '0.072 Chlorinated', '0.121 Esters', '0.099 Ethers', '0.547 Higher_alkanes' ],
@@ -72,6 +72,7 @@ my %category_mapping = (
         GR95    =>  {   HC3     => [ '0.753 Alcohols', '0.093 Chlorinated', '0.155 Esters' ],
                         HC5     => [ '0.508 Esters', '0.492 Ketones' ],
                         HC8     => [ '0.086 Alcohols', '0.914 Higher_alkanes' ],
+                        OLT     => [ '1.0 Other_alkenes,_alkynes,_dienes'],
                         TOL     => [ '0.014 Benzene', '0.526 Other_aromatics', '0.460 Toluene' ],
                         XYL     => [ '0.615 Other_aromatics', '0.244 Trimethylbenzenes', '0.141 Xylenes' ],
                     },
@@ -79,6 +80,7 @@ my %category_mapping = (
                         HC5     => [ '0.932 Esters', '0.068 Ketones' ],
                         HC8     => [ '0.402 Alcohols', '0.598 Higher_alkanes' ],
                         KET     => [ '0.007 Alcohols', '0.993 Ketones' ],
+                        OLT     => [ '1.0 Other_alkenes,_alkynes,_dienes'],
                         TOL     => [ '0.728 Other_aromatics', '0.272 Toluene' ],
                         XYL     => [ '0.596 Other_aromatics', '0.236 Trimethylbenzenes', '0.168 Xylenes' ],
                     },
@@ -98,7 +100,6 @@ my %category_mapping = (
                     },
                 }
 );
-
 
 my $mecca = MECCA->new("$base/RADM2/TNO_Solvents_Only/boxmodel");
 my $ntime = $mecca->time->nelem;
@@ -175,7 +176,6 @@ foreach my $mechanism (sort keys %data) {
         );
     }
 }
-
 my $p = $R->run(q` print(data) `);
 print $p, "\n";
 
@@ -284,7 +284,7 @@ sub get_category {
     my $category;
     if ($process =~ /CO \+ OH/) {
         $category = "CO";
-    } elsif ($process =~ /=/) {
+    } elsif ($process =~ /\+/) {
         $category = "Inorganic";
     } elsif ($process eq "CH4") {
         $category = "Methane";
@@ -318,7 +318,7 @@ sub get_category {
         $category = "Acids";
     } elsif ($process eq "KET" or $process =~ /MEK|CH3COCH3|MIBK|CYHEXONE/) {
         $category = "Ketones";
-    } elsif ($process eq "ALD" or $process =~ /MACR|CH3CHO|C2H5CHO|C3H7CHO|IPRCHO|C4H9CHO|ACR|C4ALDB|HCHO|CH2O/) {
+    } elsif ($process eq "ALD" or $process =~ /MACR|CH3CHO|C2H5CHO|C3H7CHO|IPRCHO|C4H9CHO|ACR|C4ALDB|HCHO|^CH2O/) {
         $category = "Aldehydes";
     } elsif ($process =~ /C5H8|ISO|BIGENE|BUT1ENE|C2H2/) {
         $category = "Other alkenes, alkynes, dienes";
@@ -330,27 +330,29 @@ sub get_category {
         $category = "Propene";
     } elsif ($process =~ /C10H16|LIMONENE|PINENE|OLI/) {
         $category = "Terpenes";
-    } elsif ($process =~ /CO|Emissions/) {
+    } elsif ($process =~ /Inorganic|Emissions/) {
         $category = $process;
     } else {
-        print "No category found for $process in $mechanism, $speciation\n";
+        $category = "Inorganic";
+        #print "No category found for $process in $mechanism, $speciation\n";
     }
     return $category;
 }
 
 sub get_data {
     my ($mecca, $kpp, $mechanism, $speciation, $run, $no_runs) = @_;
-    my (%production_rates, %consumption_rates);
+    $no_runs = 1 unless (defined $no_runs);
+    my (%production_rates, %consumption_rates, $producers, $producer_yields, $consumers, $consumer_yields);
     foreach my $species (qw( Ox HO2x )) {
         $kpp->family({
                 name    => $species,
                 members => $families{$species},
                 weights => $weights{$species},
         });
-        my $producers = $kpp->producing($species);
-        my $producer_yields = $kpp->effect_on($species, $producers);
-        my $consumers = $kpp->consuming($species);
-        my $consumer_yields = $kpp->effect_on($species, $consumers);
+        $producers = $kpp->producing($species);
+        $producer_yields = $kpp->effect_on($species, $producers);
+        $consumers = $kpp->consuming($species);
+        $consumer_yields = $kpp->effect_on($species, $consumers);
 
         for (0..$#$producers) {
             my $reaction = $producers->[$_];
@@ -362,10 +364,11 @@ sub get_data {
                 $production_rates{$species}{$parent} += $rate(1:$ntime-2);
             } else {
                 my $reaction_string = $kpp->reaction_string($reaction);
-                if ($reaction_string =~ /^CO \+ OH/) {
-                    $production_rates{$species}{"CO"} += $rate(1:$ntime-2);
+                if ($reaction_string =~ /_notag/) {
+                    $production_rates{$species}{"notag"} += $rate(1:$ntime-2);
                 } else {
-                    $production_rates{$species}{$reaction_string} += $rate(1:$ntime-2);
+                    my ($reactants, $products) = split / = /, $reaction_string;
+                    $production_rates{$species}{$reactants} += $rate(1:$ntime-2);
                 }
             }
         }
@@ -380,26 +383,23 @@ sub get_data {
                 $consumption_rates{$species}{$parent} += $rate(1:$ntime-2);
             } else {
                 my $reaction_string = $kpp->reaction_string($reaction);
-                if ($reaction_string =~ /^CO \+ OH/) {
-                    $consumption_rates{$species}{"CO"} += $rate(1:$ntime-2);
+                if ($reaction_string =~ /_notag/) {
+                    $consumption_rates{$species}{"notag"} += $rate(1:$ntime-2);
                 } else {
-                    $consumption_rates{$species}{$reaction_string} += $rate(1:$ntime-2);
+                    my ($reactants, $products) = split / = /, $reaction_string;
+                    $consumption_rates{$species}{$reactants} += $rate(1:$ntime-2);
                 }
             }
         }
     } 
     remove_common_processes($production_rates{"HO2x"}, $consumption_rates{"HO2x"});
     my $total_ho2x_production;
-    $total_ho2x_production += $production_rates{"HO2x"}{$_} foreach (keys %{$production_rates{"HO2x"}});
-    
+    $total_ho2x_production += $production_rates{"HO2x"}{$_} foreach (keys %{$production_rates{"HO2x"}}); 
     foreach my $reaction (keys %{$production_rates{'HO2x'}}) {
-        $production_rates{"Ox"}{$reaction} += $production_rates{"Ox"}{'HO2 + NO = NO2 + OH'} * $production_rates{'HO2x'}{$reaction} / $total_ho2x_production;
-        $consumption_rates{"Ox"}{$reaction} += $consumption_rates{"Ox"}{'HO2 + O3 = OH'} * $consumption_rates{'HO2x'}{$reaction} / $total_ho2x_production; 
-        $consumption_rates{"Ox"}{$reaction} += $consumption_rates{"Ox"}{'HO2 + NO3 = NO2 + OH'} * $consumption_rates{'HO2x'}{$reaction} / $total_ho2x_production; 
+        $production_rates{"Ox"}{$reaction} += $production_rates{"Ox"}{'HO2 + NO'} * $production_rates{'HO2x'}{$reaction} / $total_ho2x_production;
     }
-    delete $production_rates{"Ox"}{'HO2 + NO = NO2 + OH'};
-    delete $consumption_rates{"Ox"}{'HO2 + O3 = OH'};
-    delete $consumption_rates{"Ox"}{'HO2 + NO3 = NO2 + OH'};
+    delete $production_rates{"Ox"}{'HO2 + NO'};
+    delete $production_rates{"Ox"}{'notag'};
     remove_common_processes($production_rates{"Ox"}, $consumption_rates{"Ox"});
 
     my %final_categories;
@@ -419,12 +419,14 @@ sub get_data {
             }
         } else {
             my $category = get_category($process, $mechanism, $speciation);
-            if ($process eq "CH4" or $process eq "CO" or $process eq "Inorganic") {
-                $final_categories{$category} += $production_rates{"Ox"}{$process}->sum / $no_runs;
-            } else {
-                $final_categories{$category} += $production_rates{"Ox"}{$process}->sum;
-            }
+            $final_categories{$category} += $production_rates{"Ox"}{$process}->sum;
         }
+    }
+    foreach my $category (keys %final_categories) {
+        if ($category eq "Methane" or $category eq "Inorganic" or $category eq "CO") {
+            #print "$category and $no_dirs\n";
+            $final_categories{$category} /= $no_runs;
+        } 
     }
     #print "$run\n";
     #print "$_ : $final_categories{$_}\n" foreach keys %final_categories;
