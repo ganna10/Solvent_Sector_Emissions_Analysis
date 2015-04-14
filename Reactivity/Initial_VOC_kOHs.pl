@@ -1,6 +1,7 @@
 #! /usr/bin/env perl
 # Sum total kOH of initial VOC reactions
 # Version 0: Jane Coates 14/4/2015
+# Version 1: Jane Coates 14/4/2015 using sum of emitted VOC concentrations between 06:00 and 12:00 of first day, i.e. when emissions are constant
 
 use strict;
 use diagnostics;
@@ -13,6 +14,7 @@ use Statistics::R;
 #my $base = "/local/home/coates/Solvent_Emissions";
 my $base = "/work/users/jco/Solvent_Emissions";
 my @mechanisms = qw( MCM );
+#my @speciations = qw( EMEP );
 my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
 my %data;
 
@@ -76,6 +78,7 @@ $R->run(q` plot = ggplot(data, aes(x = Speciation, y = kOH, fill = Process)) `,
         q` plot = plot + theme(axis.ticks.x = element_blank()) `,
         q` plot = plot + theme(axis.title.x = element_blank()) `,
         q` plot = plot + theme(legend.title = element_blank()) `,
+        q` plot = plot + ylab("OH Reactivity (s-1)") `,
         q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(levels(data$Process))) `,
 );
 
@@ -348,12 +351,14 @@ sub get_data {
 
     my %kOH;
     foreach my $VOC (@VOC) {
+        my $concentration = $mecca->tracer($VOC) * $cair;
+        #$concentration = $concentration(1:19);
         my $oh_reactions = $kpp->reacting_with($VOC, 'OH');
         for (0..$#$oh_reactions) {
             my $reaction = $oh_reactions->[$_];
             my $rate_constant = get_rate_constant($reaction, $kpp, $cair);
             my $category = get_category($VOC);
-            $kOH{$category} += eval $rate_constant;
+            $kOH{$category} += eval($rate_constant) * $concentration->sum;
         }
     }
     return \%kOH;
