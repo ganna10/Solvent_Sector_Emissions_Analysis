@@ -11,7 +11,7 @@ use PDL::NiceSlice;
 use Statistics::R;
 
 my $base = "/work/users/jco/Solvent_Emissions";
-my @mechanisms = qw( MCM MOZART RADM2 );
+my @mechanisms = qw( RADM2 );
 my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
 my (%families, %weights, %NO_emissions, %Ox_production);
 
