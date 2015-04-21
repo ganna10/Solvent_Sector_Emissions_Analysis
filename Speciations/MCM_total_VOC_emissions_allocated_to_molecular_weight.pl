@@ -2,6 +2,7 @@
 # Get total emission rate of all VOC in speciations and allocate by molecular weight bins, correlated to NO emissions
 # Version 0: Jane Coates 20/4/2015
 # Version 1: Jane Coates 21/4/2015 correlating to cumulative Ox Production
+# Version 2: Jane Coates 21/4/2015 correlating to first day NO emissions and first day Ox production
 
 use strict;
 use diagnostics;
@@ -122,6 +123,8 @@ foreach my $speciation (keys %data) {
     }
     $R->run(q` no.data = rbind(no.data, pre) `);
 }
+$R->run(q` no.data$Speciation = factor(no.data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
+
 #my $p = $R->run(q` print(no.data) `);
 #print $p, "\n";
 $R->run(q` speciation.colours = c("TNO" = "#000000", "IPCC" = "#2b9eb3", "EMEP" = "#ef6638", "DE94" = "#f9c500", "GR95" = "#6c254f", "GR05" = "#0352cb", "UK98" = "#0e5c28", "UK08" = "#b569b3") `);
@@ -141,7 +144,7 @@ $R->run(q` p = ggplot(no.data, aes(x = VOC.emissions, y = NO.emissions, colour =
         q` p = p + geom_point(size = 4) `,
         q` p = p + theme_tufte() `,
         q` p = p + theme(axis.line = element_line(colour = "black")) `,
-        q` p = p + geom_text(aes(x = 8e8, y = 2e9, label = lm_eqn(lm(VOC.emissions ~ NO.emissions, no.data))), colour = "black", parse = TRUE) + geom_smooth(method = "lm", se = FALSE, colour = "black") `,
+        q` p = p + geom_text(aes(x = 8e8, y = 3.5e8, label = lm_eqn(lm(VOC.emissions ~ NO.emissions, no.data))), colour = "black", parse = TRUE) + geom_smooth(method = "lm", se = FALSE, colour = "black") `,
         q` p = p + scale_colour_manual(values = speciation.colours) `,
 );
 
@@ -155,7 +158,7 @@ $R->run(q` p1 = ggplot(no.data, aes(x = VOC.emissions, y = Ox, colour = Speciati
         q` p1 = p1 + geom_point(size = 4) `,
         q` p1 = p1 + theme_tufte() `,
         q` p1 = p1 + theme(axis.line = element_line(colour = "black")) `,
-        q` p1 = p1 + geom_text(aes(x = 8e8, y = 8e9, label = lm_eqn(lm(VOC.emissions ~ Ox, no.data))), colour = "black", parse = TRUE) + geom_smooth(method = "lm", se = FALSE, colour = "black") `,
+        q` p1 = p1 + geom_text(aes(x = 8e8, y = 1.5e9, label = lm_eqn(lm(VOC.emissions ~ Ox, no.data))), colour = "black", parse = TRUE) + geom_smooth(method = "lm", se = FALSE, colour = "black") `,
         q` p1 = p1 + scale_colour_manual(values = speciation.colours) `,
 );
 
@@ -201,7 +204,12 @@ sub get_voc_emissions {
         my $reaction_number = $kpp->reaction_number($reaction);
         my $rate = $mecca->rate($reaction_number);
         next if ($rate->sum == 0);
-        $emissions{$VOC} += $rate->sum;
+        if ($VOC eq "NO") {
+            $rate = $rate(1:73);
+            $emissions{$VOC} += $rate->sum;
+        } else {
+            $emissions{$VOC} += $rate->sum;
+        }
     }
     return \%emissions;
 }
@@ -222,6 +230,7 @@ sub get_Ox_production {
         my $reaction_number = $kpp->reaction_number($reaction);
         my $rate = $mecca->rate($reaction_number) * $producer_yields->[$_];
         next if ($rate->sum == 0);
+        $rate = $rate(1:73);
         $Ox_production += $rate->sum;
     }
     return $Ox_production;
