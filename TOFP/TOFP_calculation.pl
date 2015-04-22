@@ -12,8 +12,8 @@ use Statistics::R;
 
 #my $base = "/local/home/coates/Solvent_Emissions";
 my $base = "/work/users/jco/Solvent_Emissions";
-my @mechanisms = qw( RADM2 );
-my @speciations = qw( TNO );
+my @mechanisms = qw( MCM MOZART RADM2 );
+my @speciations = qw( EMEP );
 #my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
 my (%families, %weights, %data);
 $families{"HO2x"} = [ qw( HO2 HO2NO2 ) ];
@@ -184,14 +184,12 @@ foreach my $mechanism (sort keys %data) {
 
 $R->run(q` my.colours = c("Acids" = "#cc6329", "Alcohols" = "#6c254f", "Benzene" = "#8c6238", "Butanes" = "#86b650", "Chlorinated" = "#f9c500", "CO" = "#898989", "Esters" = "#f3aa7f", "Ethane" = "#77aecc", "Ethene" = "#1c3e3d", "Ethers" = "#ba8b01", "Higher alkanes" = "#0e5c28", "Ketones" = "#ef6638", "Aldehydes" = "#8ed6d2", "Other alkenes, alkynes, dienes" = "#b569b3", "Other aromatics" = "#e7e85e", "Others" = "#2b9eb3", "Pentanes" = "#8c1531", "Propane" = "#9bb18d", "Propene" = "#623812", "Terpenes" = "#c9a415", "Toluene" = "#0352cb", "Trimethylbenzenes" = "#ae4901", "Xylenes" = "#1b695b", "CO" = "#6d6537", "Methane" = "#0c3f78", "Inorganic" = "#000000") `);
 $R->run(q` plot.lines = function () { list( theme_tufte() ,
-                                            ggtitle("Cumulative Ox Production Budget") ,
-                                            ylab("Ox Production (molecules cm-3)") ,
+                                            ylab("Tagged Ox Formation Potential (molecules(Ox) cm-3)") ,
                                             scale_y_continuous(expand = c(0, 0)) ,
                                             scale_x_discrete(expand = c(0, 0)) ,
                                             theme(axis.ticks.x = element_blank()) ,
                                             theme(legend.title = element_blank()) ,
                                             theme(axis.line = element_line(colour = "black")) ,
-                                            theme(plot.title = element_text(face = "bold")) ,
                                             theme(axis.title.y = element_text(face = "bold")) ,
                                             theme(axis.title.x = element_blank()) ,
                                             theme(strip.text = element_text(face = "bold")) ,
@@ -200,7 +198,7 @@ $R->run(q` plot.lines = function () { list( theme_tufte() ,
                                             theme(panel.margin = unit(5, "mm")) ) } `);
 
 $R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
-$R->run(q` data$Process = factor(data$Process, levels = c("Acids", "Alcohols", "Aldehydes", "Benzene", "Butanes", "CO", "Chlorinated", "Esters", "Ethane", "Ethene", "Ethers", "Higher alkanes", "Inorganic", "Ketones", "Methane", "Other alkenes, alkynes, dienes", "Other aromatics", "Pentanes", "Propane", "Propene", "Terpenes", "Toluene", "Trimethylbenzenes", "Xylenes")) `);
+$R->run(q` data$Process = factor(data$Process, levels = c("Acids", "Alcohols", "Aldehydes", "Benzene", "Butanes", "Chlorinated", "Esters", "Ethane", "Ethene", "Ethers", "Higher alkanes", "Ketones", "Other alkenes, alkynes, dienes", "Other aromatics", "Pentanes", "Propane", "Propene", "Terpenes", "Toluene", "Trimethylbenzenes", "Xylenes")) `);
 #my $p = $R->run(q` print(levels(data$Process)) `);
 #print $p, "\n";
 
@@ -353,7 +351,7 @@ sub get_speciation_categories {
 
     foreach my $line (@lines) {
         $line =~ s/"//g;
-        my ($type, $speciation, $contribution) = split /,/, $line;
+        my ($type, $speciation, $contribution) = split /;/, $line;
         $data{$speciation}{$type} = $contribution;
     }
     return %data;
@@ -471,8 +469,8 @@ sub get_data {
     
     my %OFP;
     foreach my $category (keys %TOPPs_assigned) {
-        print "$category => $TOPPs_assigned{$category} : $emission_categories{$category} : $speciation_categories{$speciation}{$category}\n";
+        #print "$category => $TOPPs_assigned{$category} : $emission_categories{$category} : $speciation_categories{$speciation}{$category}\n";
         $OFP{$category} = $TOPPs_assigned{$category} * $emission_categories{$category} * $speciation_categories{$speciation}{$category};
     }
-    #return \%final_categories;
+    return \%OFP;
 }
