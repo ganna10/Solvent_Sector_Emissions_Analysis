@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
-# Allocate Cumulative Ox production budgets back to categories used to defined speciations
-# Version 0: Jane Coates 3/4/2015
+# Calculate Tagged Ox Formation Potential based on Li et al 2014
+# Version 0: Jane Coates 22/4/2015
 
 use strict;
 use diagnostics;
@@ -10,16 +10,12 @@ use PDL;
 use PDL::NiceSlice;
 use Statistics::R;
 
-#my $base = "/local/home/coates/Solvent_Emissions";
-my $base = "/work/users/jco/Solvent_Emissions";
+my $base = "/local/home/coates/Solvent_Emissions";
+#my $base = "/work/users/jco/Solvent_Emissions";
 my @mechanisms = qw( MCM MOZART RADM2 );
 my @speciations = qw( EMEP );
 #my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
-my (%families, %weights, %data);
-$families{"HO2x"} = [ qw( HO2 HO2NO2 ) ];
-
-my $file = "Contributions_to_Speciations.csv";
-my %speciation_categories = get_speciation_categories($file);
+my (%data);
 
 my %category_mapping = (
     MOZART  =>  {
@@ -104,51 +100,28 @@ my %category_mapping = (
                 }
 );
 
-my $mecca = MECCA->new("$base/RADM2/TNO_Solvents_Only/boxmodel");
-my $ntime = $mecca->time->nelem;
-
 foreach my $mechanism (@mechanisms) {
     foreach my $speciation (@speciations) {
-        my (%production_rates, %consumption_rates);
         if ($mechanism =~ /MOZART|RADM2/) { 
             my $boxmodel = "$base/$mechanism/${speciation}_tagged_solvents_only/boxmodel";
             my $mecca = MECCA->new($boxmodel);
             my $eqn_file = "$base/$mechanism/${speciation}_tagged_solvents_only/gas.eqn";
             my $kpp = KPP->new($eqn_file); 
-            my $RO2_file = "$base/$mechanism/${speciation}_tagged_solvents_only/RO2_species.txt";
-            my @no2_reservoirs = get_no2_reservoirs($kpp, $RO2_file);
-            $families{"Ox"} = [ qw( O3 NO2 O O1D NO3 N2O5 HO2NO2 ), @no2_reservoirs ];
-            $weights{"Ox"} = { NO3 => 2, N2O5 => 3 };
             $data{$mechanism}{$speciation} = get_data($mecca, $kpp, $mechanism, $speciation);
         } else {
             my $mcm_base = "$base/$mechanism";
             opendir DIR, $mcm_base or die "can't open $mcm_base : $!";
             my @runs = grep { $_ =~ /${speciation}_tagged_solvents_only/ } readdir DIR;
             closedir DIR;
-            my $no_runs = scalar @runs;
             foreach my $run (@runs) {
                 my $boxmodel = "$base/$mechanism/$run/boxmodel";
                 my $mecca = MECCA->new($boxmodel);
                 my $eqn = "$base/$mechanism/$run/gas.eqn";
                 my $kpp = KPP->new($eqn);
-                my $RO2_file = "$base/$mechanism/$run/RO2_species.txt";
-                my @no2_reservoirs = get_no2_reservoirs($kpp, $RO2_file);
-                $families{"Ox"} = [ qw( O3 NO2 O O1D NO3 N2O5 HO2NO2 ), @no2_reservoirs ];
-                $weights{"Ox"} = { NO3 => 2, N2O5 => 3 };
-                $data{$mechanism}{$speciation}{$run} = get_data($mecca, $kpp, $mechanism, $speciation, $run, $no_runs);
+                $data{$mechanism}{$speciation}{$run} = get_data($mecca, $kpp, $mechanism, $speciation, $run);
             }
         }
     }
-}
-
-foreach my $speciation (keys %{$data{"MCM"}}) {
-    my %allocated;
-    foreach my $run (keys %{$data{'MCM'}{$speciation}}) {
-        foreach my $process (sort keys %{$data{'MCM'}{$speciation}{$run}}) {
-            $allocated{$process} += $data{'MCM'}{$speciation}{$run}{$process};
-        }
-    }
-    $data{'MCM'}{$speciation} = \%allocated;
 }
 
 my $R = Statistics::R->new();
@@ -159,126 +132,72 @@ $R->run(q` library(ggplot2) `,
         q` library(grid) `,
 );
 
-$R->run(q` data = data.frame() `);
-foreach my $mechanism (sort keys %data) {
-    $R->set('mechanism', $mechanism);
-    #print "$mechanism\n";
-    foreach my $speciation (sort keys %{$data{$mechanism}}) {
-        #print "\t$speciation\n";
-        $R->run(q` pre = data.frame(Mechanism = mechanism) `);
-        $R->set('speciation', $speciation);
-        $R->run(q` pre$Speciation = speciation `);
-        foreach my $process (sort keys %{$data{$mechanism}{$speciation}}) {
-            #print "\t\t$process $data{$mechanism}{$speciation}{$process}\n";
-            $R->set('process', $process);
-            $R->set('Ox.production', $data{$mechanism}{$speciation}{$process});
-            $R->run(q` pre[process] = Ox.production `);
-        }
-        $R->run(q` pre = gather(pre, Process, Ox.Production, -Mechanism, -Speciation) `,
-                q` data = rbind(data, pre) `,
-        );
-    }
-}
-#my $p = $R->run(q` print(data) `);
-#print $p, "\n";
-
-$R->run(q` my.colours = c("Acids" = "#cc6329", "Alcohols" = "#6c254f", "Benzene" = "#8c6238", "Butanes" = "#86b650", "Chlorinated" = "#f9c500", "CO" = "#898989", "Esters" = "#f3aa7f", "Ethane" = "#77aecc", "Ethene" = "#1c3e3d", "Ethers" = "#ba8b01", "Higher alkanes" = "#0e5c28", "Ketones" = "#ef6638", "Aldehydes" = "#8ed6d2", "Other alkenes, alkynes, dienes" = "#b569b3", "Other aromatics" = "#e7e85e", "Others" = "#2b9eb3", "Pentanes" = "#8c1531", "Propane" = "#9bb18d", "Propene" = "#623812", "Terpenes" = "#c9a415", "Toluene" = "#0352cb", "Trimethylbenzenes" = "#ae4901", "Xylenes" = "#1b695b", "CO" = "#6d6537", "Methane" = "#0c3f78", "Inorganic" = "#000000") `);
-$R->run(q` plot.lines = function () { list( theme_tufte() ,
-                                            ylab("Tagged Ox Formation Potential (molecules(Ox) cm-3)") ,
-                                            scale_y_continuous(expand = c(0, 0)) ,
-                                            scale_x_discrete(expand = c(0, 0)) ,
-                                            theme(axis.ticks.x = element_blank()) ,
-                                            theme(legend.title = element_blank()) ,
-                                            theme(axis.line = element_line(colour = "black")) ,
-                                            theme(axis.title.y = element_text(face = "bold")) ,
-                                            theme(axis.title.x = element_blank()) ,
-                                            theme(strip.text = element_text(face = "bold")) ,
-                                            theme(axis.text.x = element_text(face = "bold", angle = 45, hjust = 0.7, vjust = 0.8)) ,
-                                            scale_fill_manual(values = my.colours, limits = rev(levels(data$Process))) ,
-                                            theme(panel.margin = unit(5, "mm")) ) } `);
-
-$R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
-$R->run(q` data$Process = factor(data$Process, levels = c("Acids", "Alcohols", "Aldehydes", "Benzene", "Butanes", "Chlorinated", "Esters", "Ethane", "Ethene", "Ethers", "Higher alkanes", "Ketones", "Other alkenes, alkynes, dienes", "Other aromatics", "Pentanes", "Propane", "Propene", "Terpenes", "Toluene", "Trimethylbenzenes", "Xylenes")) `);
-#my $p = $R->run(q` print(levels(data$Process)) `);
-#print $p, "\n";
-
-$R->run(q` plot = ggplot(data, aes(x = Speciation, y = Ox.Production, fill = Process)) `,
-        q` plot = plot + geom_bar(stat = "identity") `,
-        q` plot = plot + facet_wrap( ~ Mechanism, nrow = 1 ) `,
-        q` plot = plot + plot.lines() `,
-);
-
-$R->run(q` CairoPDF(file = "TOFP_facet_mechanism.pdf", width = 8.6, height = 6) `,
-        q` print(plot) `,
-        q` dev.off() `,
-);
-
-$R->run(q` plot = ggplot(data, aes(x = Mechanism, y = Ox.Production, fill = Process)) `,
-        q` plot = plot + geom_bar(stat = "identity") `,
-        q` plot = plot + facet_wrap( ~ Speciation, nrow = 2 ) `,
-        q` plot = plot + plot.lines() `,
-);
-
-$R->run(q` CairoPDF(file = "TOFP_facet_speciation.pdf", width = 8.6, height = 6) `,
-        q` print(plot) `,
-        q` dev.off() `,
-);
+#$R->run(q` data = data.frame() `);
+#foreach my $mechanism (sort keys %data) {
+#    $R->set('mechanism', $mechanism);
+#    #print "$mechanism\n";
+#    foreach my $speciation (sort keys %{$data{$mechanism}}) {
+#        #print "\t$speciation\n";
+#        $R->run(q` pre = data.frame(Mechanism = mechanism) `);
+#        $R->set('speciation', $speciation);
+#        $R->run(q` pre$Speciation = speciation `);
+#        foreach my $process (sort keys %{$data{$mechanism}{$speciation}}) {
+#            #print "\t\t$process $data{$mechanism}{$speciation}{$process}\n";
+#            $R->set('process', $process);
+#            $R->set('Ox.production', $data{$mechanism}{$speciation}{$process});
+#            $R->run(q` pre[process] = Ox.production `);
+#        }
+#        $R->run(q` pre = gather(pre, Process, Ox.Production, -Mechanism, -Speciation) `,
+#                q` data = rbind(data, pre) `,
+#        );
+#    }
+#}
+##my $p = $R->run(q` print(data) `);
+##print $p, "\n";
+#
+#$R->run(q` my.colours = c("Acids" = "#cc6329", "Alcohols" = "#6c254f", "Benzene" = "#8c6238", "Butanes" = "#86b650", "Chlorinated" = "#f9c500", "CO" = "#898989", "Esters" = "#f3aa7f", "Ethane" = "#77aecc", "Ethene" = "#1c3e3d", "Ethers" = "#ba8b01", "Higher alkanes" = "#0e5c28", "Ketones" = "#ef6638", "Aldehydes" = "#8ed6d2", "Other alkenes, alkynes, dienes" = "#b569b3", "Other aromatics" = "#e7e85e", "Others" = "#2b9eb3", "Pentanes" = "#8c1531", "Propane" = "#9bb18d", "Propene" = "#623812", "Terpenes" = "#c9a415", "Toluene" = "#0352cb", "Trimethylbenzenes" = "#ae4901", "Xylenes" = "#1b695b", "CO" = "#6d6537", "Methane" = "#0c3f78", "Inorganic" = "#000000") `);
+#$R->run(q` plot.lines = function () { list( theme_tufte() ,
+#                                            ylab("Tagged Ox Formation Potential (molecules(Ox) cm-3)") ,
+#                                            scale_y_continuous(expand = c(0, 0)) ,
+#                                            scale_x_discrete(expand = c(0, 0)) ,
+#                                            theme(axis.ticks.x = element_blank()) ,
+#                                            theme(legend.title = element_blank()) ,
+#                                            theme(axis.line = element_line(colour = "black")) ,
+#                                            theme(axis.title.y = element_text(face = "bold")) ,
+#                                            theme(axis.title.x = element_blank()) ,
+#                                            theme(strip.text = element_text(face = "bold")) ,
+#                                            theme(axis.text.x = element_text(face = "bold", angle = 45, hjust = 0.7, vjust = 0.8)) ,
+#                                            scale_fill_manual(values = my.colours, limits = rev(levels(data$Process))) ,
+#                                            theme(panel.margin = unit(5, "mm")) ) } `);
+#
+#$R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
+#$R->run(q` data$Process = factor(data$Process, levels = c("Acids", "Alcohols", "Aldehydes", "Benzene", "Butanes", "Chlorinated", "Esters", "Ethane", "Ethene", "Ethers", "Higher alkanes", "Ketones", "Other alkenes, alkynes, dienes", "Other aromatics", "Pentanes", "Propane", "Propene", "Terpenes", "Toluene", "Trimethylbenzenes", "Xylenes")) `);
+##my $p = $R->run(q` print(levels(data$Process)) `);
+##print $p, "\n";
+#
+#$R->run(q` plot = ggplot(data, aes(x = Speciation, y = Ox.Production, fill = Process)) `,
+#        q` plot = plot + geom_bar(stat = "identity") `,
+#        q` plot = plot + facet_wrap( ~ Mechanism, nrow = 1 ) `,
+#        q` plot = plot + plot.lines() `,
+#);
+#
+#$R->run(q` CairoPDF(file = "TOFP_facet_mechanism.pdf", width = 8.6, height = 6) `,
+#        q` print(plot) `,
+#        q` dev.off() `,
+#);
+#
+#$R->run(q` plot = ggplot(data, aes(x = Mechanism, y = Ox.Production, fill = Process)) `,
+#        q` plot = plot + geom_bar(stat = "identity") `,
+#        q` plot = plot + facet_wrap( ~ Speciation, nrow = 2 ) `,
+#        q` plot = plot + plot.lines() `,
+#);
+#
+#$R->run(q` CairoPDF(file = "TOFP_facet_speciation.pdf", width = 8.6, height = 6) `,
+#        q` print(plot) `,
+#        q` dev.off() `,
+#);
 
 $R->stop();
-
-sub remove_common_processes {
-    my ($production, $consumption) = @_;
-    my %common_processes;
-    $common_processes{$_} = 1 for (grep { defined $production->{$_} } keys %$consumption) ;
-
-    foreach my $process (keys %common_processes) {
-        my $net_effect = $production->{$process} + $consumption->{$process};
-        #print $process, $net_effect->nelem, "\n";
-        if ($net_effect->sum > 0) { #if net production remove consumption processes, retain net production
-            if (which($net_effect < 0)->nelem > 0) { #which gets indices of non-0 values, nelem get nr of elements
-                #print "which if $process $net_effect\n";
-                $production->{$process} .= $net_effect;
-                $production->{$process}->where($net_effect < 0) .= 0; #where returns output pdl corresponding to input pdl and meeting the condition
-                $consumption->{$process} .= $net_effect;
-                $consumption->{$process}->where($net_effect > 0) .= 0; #where returns output pdl corresponding to input pdl and meeting the condition
-                next;
-            } 
-            $production->{$process} = $net_effect;
-            delete $consumption->{$process};
-        } else { #net consumption
-            if (which($net_effect > 0)->nelem > 0) {
-                $production->{$process} .= $net_effect;
-                $production->{$process}->where($net_effect < 0) .= 0;
-                $consumption->{$process} .= $net_effect;
-                $consumption->{$process}->where($net_effect > 0) .= 0;
-                next;
-            }
-            $consumption->{$process} = $net_effect;
-            delete $production->{$process};
-        }
-    }
-} 
-
-sub get_no2_reservoirs { #get species that are produced when radical species react with NO2
-    my ($kpp, $file) = @_; 
-    open my $in, '<:encoding(utf-8)', $file or die $!; 
-    my @ro2;
-    for (<$in>) {
-        push @ro2, split /\s+/, $_; 
-    }
-    close $in;
-    my @no2_reservoirs;
-    foreach my $ro2 (@ro2) {
-        my ($reactions) = $kpp->reacting_with($ro2, 'NO2');
-        foreach my $reaction (@$reactions) {
-            my ($products) = $kpp->products($reaction);
-            if (@$products == 1) {
-                push @no2_reservoirs, $products->[0];
-            }   
-        }   
-    }   
-    return @no2_reservoirs;
-} 
 
 sub get_category {
     my ($process, $mechanism, $speciation) = @_;
@@ -340,137 +259,64 @@ sub get_category {
     return $category;
 }
 
-sub get_speciation_categories {
-    my ($file) = @_;
-    open my $in, '<:encoding(utf-8)', $file or die "Can't open $file";
-    local $/ = undef;
-    my $data = <$in>;
-    close $in;
-    my @lines = split /\n/, $data;
-    my %data;
+sub assign_to_categories {
+    my ($mechanism, $speciation, $hash) = @_;
 
-    foreach my $line (@lines) {
-        $line =~ s/"//g;
-        my ($type, $speciation, $contribution) = split /;/, $line;
-        $data{$speciation}{$type} = $contribution;
+    my %assigned;
+    foreach my $item (keys %$hash) {
+        if (exists $category_mapping{$mechanism}) {
+            if (exists $category_mapping{$mechanism}{$speciation}) {
+                if (exists $category_mapping{$mechanism}{$speciation}{$item}) {
+                    foreach my $entry (@{$category_mapping{$mechanism}{$speciation}{$item}}) {
+                        my ($factor, $category) = split / /, $entry;
+                        $category =~ s/_/ /g;
+                        $assigned{$category} += $factor * $hash->{$item};
+                    }
+                } else {
+                    my $category = get_category($item, $mechanism, $speciation);
+                    $assigned{$category} += $hash->{$item};
+                }
+            }
+        } else {
+            my $category = get_category($item, $mechanism, $speciation);
+            $assigned{$category} += $hash->{$item};
+        }
     }
-    return %data;
+    return %assigned
 }
 
 sub get_data {
-    my ($mecca, $kpp, $mechanism, $speciation, $run, $no_runs) = @_;
-    $no_runs = 1 unless (defined $no_runs);
-    my (%production_rates, %consumption_rates, $producers, $producer_yields, $consumers, $consumer_yields);
-    foreach my $species (qw( Ox HO2x )) {
-        $kpp->family({
-                name    => $species,
-                members => $families{$species},
-                weights => $weights{$species},
-        });
-        $producers = $kpp->producing($species);
-        $producer_yields = $kpp->effect_on($species, $producers);
-        $consumers = $kpp->consuming($species);
-        $consumer_yields = $kpp->effect_on($species, $consumers);
-
-        for (0..$#$producers) {
-            my $reaction = $producers->[$_];
-            my $reaction_number = $kpp->reaction_number($reaction);
-            my $rate = $mecca->rate($reaction_number) * $producer_yields->[$_];
-            next if ($rate->sum == 0);
-            my ($number, $parent) = split /_/, $reaction;
-            if (defined $parent) {
-                $production_rates{$species}{$parent} += $rate(1:$ntime-2);
-            } else {
-                my $reaction_string = $kpp->reaction_string($reaction);
-                if ($reaction_string =~ /_notag/) {
-                    $production_rates{$species}{"notag"} += $rate(1:$ntime-2);
-                } else {
-                    my ($reactants, $products) = split / = /, $reaction_string;
-                    $production_rates{$species}{$reactants} += $rate(1:$ntime-2);
-                }
-            }
-        }
-
-        for (0..$#$consumers) {
-            my $reaction = $consumers->[$_];
-            my $reaction_number = $kpp->reaction_number($reaction);
-            my $rate = $mecca->rate($reaction_number) * $consumer_yields->[$_];
-            next if ($rate->sum == 0);
-            my ($number, $parent) = split /_/, $reaction;
-            if (defined $parent) {
-                $consumption_rates{$species}{$parent} += $rate(1:$ntime-2);
-            } else {
-                my $reaction_string = $kpp->reaction_string($reaction);
-                if ($reaction_string =~ /_notag/) {
-                    $consumption_rates{$species}{"notag"} += $rate(1:$ntime-2);
-                } else {
-                    my ($reactants, $products) = split / = /, $reaction_string;
-                    $consumption_rates{$species}{$reactants} += $rate(1:$ntime-2);
-                }
-            }
-        }
-    } 
-    remove_common_processes($production_rates{"HO2x"}, $consumption_rates{"HO2x"});
-    my $total_ho2x_production;
-    $total_ho2x_production += $production_rates{"HO2x"}{$_} foreach (keys %{$production_rates{"HO2x"}}); 
-    foreach my $reaction (keys %{$production_rates{'HO2x'}}) {
-        $production_rates{"Ox"}{$reaction} += $production_rates{"Ox"}{'HO2 + NO'} * $production_rates{'HO2x'}{$reaction} / $total_ho2x_production;
-    }
-    delete $production_rates{"Ox"}{'HO2 + NO'};
-    delete $production_rates{"Ox"}{'notag'};
-    remove_common_processes($production_rates{"Ox"}, $consumption_rates{"Ox"});
-
-    ###get emissions of VOC
-    my %emissions;
-    foreach my $VOC (keys %{$production_rates{"Ox"}}) { 
-        next if ($VOC =~ /\+/ or $VOC eq "CH4");
-        my $emission_reaction = $kpp->producing_from($VOC, "UNITY");
-        my $emission_reaction_number = $kpp->reaction_number($emission_reaction->[0]);
-        my $emission_rate = $mecca->rate($emission_reaction_number);
-        $emissions{$VOC} = $emission_rate->sum;
-    }
-
-    sub assign_to_categories {
-        my ($mechanism, $speciation, $hash) = @_;
-
-        my %assigned;
-        foreach my $item (keys %$hash) {
-            if (exists $category_mapping{$mechanism}) {
-                if (exists $category_mapping{$mechanism}{$speciation}) {
-                    if (exists $category_mapping{$mechanism}{$speciation}{$item}) {
-                        foreach my $entry (@{$category_mapping{$mechanism}{$speciation}{$item}}) {
-                            my ($factor, $category) = split / /, $entry;
-                            $category =~ s/_/ /g;
-                            $assigned{$category} += $factor * $hash->{$item};
-                        }
-                    } else {
-                        my $category = get_category($item, $mechanism, $speciation);
-                        $assigned{$category} += $hash->{$item};
-                    }
-                }
-            } else {
-                my $category = get_category($item, $mechanism, $speciation);
-                $assigned{$category} += $hash->{$item};
-            }
-        }
-        return %assigned
-    }
-    my %emission_categories = assign_to_categories($mechanism, $speciation, \%emissions);
+    my ($mecca, $kpp, $mechanism, $speciation, $run) = @_;
     
     ####TOPPs
+    my $TOPP_file = "${mechanism}_${speciation}_${speciation}_tagged_solvents_only_cumulative_TOPP_values.csv";
     my %TOPPs;
-    foreach my $VOC (keys %{$production_rates{"Ox"}}) {
-        next if ($VOC =~ /\+/ or $VOC eq "CH4");
-        print "No emissions for $VOC\n" unless (defined $emissions{$VOC});
-        my $cumulative_Ox = $production_rates{"Ox"}{$VOC}->sum;
-        $TOPPs{$VOC} = $cumulative_Ox / $emissions{$VOC};
-    } 
-    my %TOPPs_assigned = assign_to_categories($mechanism, $speciation, \%TOPPs);
-    
-    my %OFP;
-    foreach my $category (keys %TOPPs_assigned) {
-        #print "$category => $TOPPs_assigned{$category} : $emission_categories{$category} : $speciation_categories{$speciation}{$category}\n";
-        $OFP{$category} = $TOPPs_assigned{$category} * $emission_categories{$category} * $speciation_categories{$speciation}{$category};
+    open my $in, '<:encoding(utf-8)', $TOPP_file or die "Can't open $TOPP_file : $!";
+    my @lines = <$in>;
+    close $in;
+    foreach my $line (@lines) {
+        next if ($line =~ /^VOC,/);
+        chomp $line;
+        my ($VOC, $TOPP) = split /,/, $line;
+        $TOPPs{$VOC} = $TOPP;
     }
-    return \%OFP;
+    #my %TOPPs_assigned = assign_to_categories($mechanism, $speciation, \%TOPPs);
+
+    ###get emissions of VOC
+    my %emissions; 
+    print "$mechanism : $speciation\n";
+    foreach my $VOC (keys %TOPPs) {
+        my $emission_reaction = $kpp->producing_from($VOC, "UNITY");
+        my $reaction_number = $kpp->reaction_number($emission_reaction);
+        print "$VOC: ", $kpp->reaction_string($emission_reaction->[0]), "\n";
+    }
+    #my %emission_categories = assign_to_categories($mechanism, $speciation, \%emissions);
+    
+    ###calculate TOFP
+    my %OFP;
+    #foreach my $category (keys %TOPPs_assigned) {
+        #print "$category => $TOPPs_assigned{$category} : $emission_categories{$category} : $speciation_categories{$speciation}{$category}\n";
+        #$OFP{$category} = $TOPPs_assigned{$category} * $emission_categories{$category} * $speciation_categories{$speciation}{$category};
+        #}
+    #return \%OFP;
 }
