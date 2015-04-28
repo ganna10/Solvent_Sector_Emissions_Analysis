@@ -31,6 +31,7 @@ $R->run(q` library(ggplot2) `,
         q` library(grid) `,
         q` library(scales) `,
         q` library(ggthemes) `,
+        q` library(dplyr) `,
         q` library(Cairo) `,
 );
 $R->run(q` data = data.frame() `);
@@ -85,5 +86,7 @@ $R->run(q` CairoPDF(file = "TOPP_comparison_betwee_speciation.pdf", width = 15, 
         q` print(plot) `,
         q` dev.off() `,
 ); 
+
+$R->run(q` write.table(data, file = "All_TOPPs.csv", row.names = FALSE, col.names = TRUE, quote = FALSE, sep = ",") `);
 
 $R->stop();
