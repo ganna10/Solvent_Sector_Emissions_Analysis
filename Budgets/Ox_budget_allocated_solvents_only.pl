@@ -151,6 +151,7 @@ foreach my $speciation (keys %{$data{"MCM"}}) {
 my $R = Statistics::R->new();
 $R->run(q` library(ggplot2) `,
         q` library(tidyr) `,
+        q` library(dplyr) `,
         q` library(Cairo) `,
         q` library(ggthemes) `,
         q` library(grid) `,
@@ -180,8 +181,8 @@ foreach my $mechanism (sort keys %data) {
 #print $p, "\n";
 $R->run(q` write.table(data, file = "Ox_production_allocated.csv", sep = ",", col.names = FALSE, row.names = FALSE, quote = FALSE) `);
 
-#$R->run(q` my.colours = c("Acids" = "#cc6329", "Alcohols" = "#6c254f", "Benzene" = "#8c6238", "Butanes" = "#86b650", "Chlorinated" = "#f9c500", "CO" = "#898989", "Esters" = "#f3aa7f", "Ethane" = "#77aecc", "Ethene" = "#1c3e3d", "Ethers" = "#ba8b01", "Higher alkanes" = "#0e5c28", "Ketones" = "#ef6638", "Aldehydes" = "#8ed6d2", "Other alkenes, alkynes, dienes" = "#b569b3", "Other aromatics" = "#e7e85e", "Others" = "#2b9eb3", "Pentanes" = "#8c1531", "Propane" = "#9bb18d", "Propene" = "#623812", "Terpenes" = "#c9a415", "Toluene" = "#0352cb", "Trimethylbenzenes" = "#ae4901", "Xylenes" = "#1b695b", "CO" = "#6d6537", "Methane" = "#0c3f78", "Inorganic" = "#000000") `);
-$R->run(q` my.colours = c("Alkanes" = "#6c254f", "Alkenes,Alkynes" = "#f9c500", "Aromatics" = "#0e5c28", "Chlorinated" = "#ef6638", "CO" = "#6d6537", "Inorganic" = "#000000", "Methane" = "#0c3f78", "Oxygenated" = "#2b9eb3") `);
+$R->run(q` my.colours = c("Acids" = "#cc6329", "Alcohols" = "#6c254f", "Benzene" = "#8c6238", "Butanes" = "#86b650", "Chlorinated" = "#f9c500", "CO" = "#898989", "Esters" = "#f3aa7f", "Ethane" = "#77aecc", "Ethene" = "#1c3e3d", "Ethers" = "#ba8b01", "Higher alkanes" = "#0e5c28", "Ketones" = "#ef6638", "Aldehydes" = "#8ed6d2", "Other alkenes, alkynes, dienes" = "#b569b3", "Other aromatics" = "#e7e85e", "Others" = "#2b9eb3", "Pentanes" = "#8c1531", "Propane" = "#9bb18d", "Propene" = "#623812", "Terpenes" = "#c9a415", "Toluene" = "#0352cb", "Trimethylbenzenes" = "#ae4901", "Xylenes" = "#1b695b", "CO" = "#6d6537", "Methane" = "#0c3f78", "Inorganic" = "#000000") `);
+#$R->run(q` my.colours = c("Alkanes" = "#6c254f", "Alkenes,Alkynes" = "#f9c500", "Aromatics" = "#0e5c28", "Chlorinated" = "#ef6638", "CO" = "#6d6537", "Inorganic" = "#000000", "Methane" = "#0c3f78", "Oxygenated" = "#2b9eb3") `);
 $R->run(q` plot.lines = function () { list( theme_tufte() ,
                                             ggtitle("Cumulative Ox Production Budget") ,
                                             ylab("Ox Production (molecules cm-3)") ,
@@ -200,10 +201,12 @@ $R->run(q` plot.lines = function () { list( theme_tufte() ,
 
 $R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
 #$R->run(q` data$Process = factor(data$Process, levels = c("Acids", "Alcohols", "Aldehydes", "Benzene", "Butanes", "CO", "Chlorinated", "Esters", "Ethane", "Ethene", "Ethers", "Higher alkanes", "Inorganic", "Ketones", "Methane", "Other alkenes, alkynes, dienes", "Other aromatics", "Pentanes", "Propane", "Propene", "Terpenes", "Toluene", "Trimethylbenzenes", "Xylenes")) `);
+$R->run(q` data$Process = factor(data$Process, levels = c("Methane", "CO", "Inorganic", "Ethane", "Propane", "Butanes", "Pentanes", "Higher alkanes", "Ethene", "Propene", "Terpenes", "Other alkenes, alkynes, dienes", "Benzene", "Toluene", "Trimethylbenzenes", "Xylenes", "Other aromatics", "Acids", "Alcohols", "Aldehydes", "Esters", "Ethers", "Ketones", "Chlorinated")) `);
+$R->run(q` data = mutate(data, mechanism = factor(Mechanism, labels = c("MCM v3.2", "MOZART-4", "RADM2"))) `);
 #my $p = $R->run(q` print(levels(data$Process)) `);
 #print $p, "\n";
 
-$R->run(q` plot = ggplot(data, aes(x = Speciation, y = Ox.Production, fill = Process)) `,
+$R->run(q` plot = ggplot(data, aes(x = Speciation, y = Ox.Production, fill = Process, order = Process)) `,
         q` plot = plot + geom_bar(stat = "identity") `,
         q` plot = plot + facet_wrap( ~ Mechanism, nrow = 1 ) `,
         q` plot = plot + plot.lines() `,
@@ -225,40 +228,40 @@ $R->run(q` CairoPDF(file = "Cumulative_Ox_budget_allocated_facet_speciation.pdf"
         q` dev.off() `,
 );
 
-$R->run(q` plot = ggplot(data, aes(x = Speciation, y = Ox.Production, fill = Process)) `,
-        q` plot = plot + geom_bar(stat = "identity", position = "dodge") `,
-        q` plot = plot + facet_wrap( ~ Mechanism, nrow = 1 ) `,
-        q` plot = plot + theme(legend.position = "bottom") `,
-        q` plot = plot + plot.lines() `,
-);
-
-$R->run(q` CairoPDF(file = "Cumulative_Ox_budget_allocated_facet_mechanism_dodged.pdf", width = 10, height = 7) `,
-        q` print(plot) `,
-        q` dev.off() `,
-); 
-
-$R->run(q` plot = ggplot(data, aes(x = Speciation, y = Ox.Production)) `,
-        q` plot = plot + geom_bar(stat = "identity") `,
-        q` plot = plot + facet_grid(Process ~ Mechanism, scales = "free") `,
-        q` plot = plot + scale_y_continuous(limits = c(0, 4e9), breaks = seq(0, 4e9, 1e9)) `,
-        q` plot = plot + theme_tufte() `,
-        q` plot = plot + ggtitle("Cumulative Ox Production Budget")  `,
-        q` plot = plot + ylab("Ox Production (molecules cm-3)")  `,
-        q` plot = plot + theme(axis.ticks.x = element_blank())  `,
-        q` plot = plot + theme(legend.title = element_blank())  `,
-        q` plot = plot + theme(axis.line = element_line(colour = "black"))  `,
-        q` plot = plot + theme(plot.title = element_text(face = "bold"))  `,
-        q` plot = plot + theme(axis.title.y = element_text(face = "bold"))  `,
-        q` plot = plot + theme(axis.title.x = element_blank())  `,
-        q` plot = plot + theme(strip.text = element_text(face = "bold"))  `,
-        q` plot = plot + theme(axis.text.x = element_text(face = "bold", angle = 45, hjust = 0.7, vjust = 0.8))  `,
-        q` plot = plot + theme(panel.margin = unit(5, "mm")) `,
-);
-
-$R->run(q` CairoPDF(file = "Cumulative_Ox_budget_allocated_process_vs_mechanism.pdf", width = 8.6, height = 6) `,
-        q` print(plot) `,
-        q` dev.off() `,
-); 
+#$R->run(q` plot = ggplot(data, aes(x = Speciation, y = Ox.Production, fill = Process)) `,
+#        q` plot = plot + geom_bar(stat = "identity", position = "dodge") `,
+#        q` plot = plot + facet_wrap( ~ Mechanism, nrow = 1 ) `,
+#        q` plot = plot + theme(legend.position = "bottom") `,
+#        q` plot = plot + plot.lines() `,
+#);
+#
+#$R->run(q` CairoPDF(file = "Cumulative_Ox_budget_allocated_facet_mechanism_dodged.pdf", width = 10, height = 7) `,
+#        q` print(plot) `,
+#        q` dev.off() `,
+#); 
+#
+#$R->run(q` plot = ggplot(data, aes(x = Speciation, y = Ox.Production)) `,
+#        q` plot = plot + geom_bar(stat = "identity") `,
+#        q` plot = plot + facet_grid(Process ~ Mechanism, scales = "free") `,
+#        q` plot = plot + scale_y_continuous(limits = c(0, 4e9), breaks = seq(0, 4e9, 1e9)) `,
+#        q` plot = plot + theme_tufte() `,
+#        q` plot = plot + ggtitle("Cumulative Ox Production Budget")  `,
+#        q` plot = plot + ylab("Ox Production (molecules cm-3)")  `,
+#        q` plot = plot + theme(axis.ticks.x = element_blank())  `,
+#        q` plot = plot + theme(legend.title = element_blank())  `,
+#        q` plot = plot + theme(axis.line = element_line(colour = "black"))  `,
+#        q` plot = plot + theme(plot.title = element_text(face = "bold"))  `,
+#        q` plot = plot + theme(axis.title.y = element_text(face = "bold"))  `,
+#        q` plot = plot + theme(axis.title.x = element_blank())  `,
+#        q` plot = plot + theme(strip.text = element_text(face = "bold"))  `,
+#        q` plot = plot + theme(axis.text.x = element_text(face = "bold", angle = 45, hjust = 0.7, vjust = 0.8))  `,
+#        q` plot = plot + theme(panel.margin = unit(5, "mm")) `,
+#);
+#
+#$R->run(q` CairoPDF(file = "Cumulative_Ox_budget_allocated_process_vs_mechanism.pdf", width = 8.6, height = 6) `,
+#        q` print(plot) `,
+#        q` dev.off() `,
+#); 
 
 $R->stop();
 
@@ -483,5 +486,6 @@ sub get_data {
     }
     #print "$run\n";
     #print "$_ : $final_categories{$_}\n" foreach keys %final_categories;
-    return \%last;
+    #return \%last;
+    return \%final_categories;
 }

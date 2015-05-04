@@ -2,6 +2,7 @@
 # Mixing Ratio time series plots, facet by solvent speciation. ARGV is species name
 # Version 0 : Jane Coates 19/1/2015
 # Version 1: Jane Coates 25/2/2015 plotting aesthetic changes
+# Version 2: Jane Coates 29/4/2015 plot changes
 
 use strict;
 use diagnostics;
@@ -70,10 +71,11 @@ foreach my $mechanism (sort keys %data) {
 #my $p = $R->run(q` print(data) `);
 #print "$p\n";
 
+$R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
 $R->run(q` my.colours = c("MCM" = "#6c254f", "MOZART" = "#ef6638", "RADM2" = "#0e5c28") `);
 $R->run(q` plot = ggplot(data, aes(x = Time, y = Mixing.Ratio, colour = Mechanism, group = Mechanism)) `,
         q` plot = plot + geom_line() `,
-        q` plot = plot + facet_wrap( ~ Speciation, scales = "free_x") `,
+        q` plot = plot + facet_wrap( ~ Speciation, nrow = 2) `,
         q` plot = plot + theme_tufte() `,
         q` plot = plot + ylab("Mixing Ratio (ppbv)") `,
         q` plot = plot + xlab("Time (days)") `,
@@ -85,11 +87,11 @@ $R->run(q` plot = ggplot(data, aes(x = Time, y = Mixing.Ratio, colour = Mechanis
         q` plot = plot + theme(panel.margin.x = unit(0.3, "cm")) `,
         q` plot = plot + theme(axis.title = element_text(face = "bold")) `,
         q` plot = plot + theme(legend.title = element_blank()) `,
-        q` plot = plot + theme(legend.position = c(0.85, 0.1)) `,
+        q` plot = plot + theme(legend.position = "top") `,
         q` plot = plot + scale_colour_manual(values = my.colours) `,
 );
 
-$R->run(q` CairoPDF(file = file.name, width = 8.6, height = 6) `,
+$R->run(q` CairoPDF(file = file.name, width = 10, height = 7) `,
         q` print(plot) `,
         q` dev.off() `,
 );

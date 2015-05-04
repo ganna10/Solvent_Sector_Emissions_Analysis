@@ -2,6 +2,7 @@
 # Cumulative Ox production budgets, faceted by mechanism full Ox family
 # Version 0: Jane Coates 24/3/2015
 # Version 1: Jane Coates 27/3/2015 including both facetting in script
+# Version 2: Jane Coates 29/4/2015 removing HO2x from analysis 
 
 use strict;
 use diagnostics;
@@ -33,7 +34,7 @@ foreach my $mechanism (@mechanisms) {
         $families{"Ox"} = [ qw( O3 NO2 O NO3 N2O5 HO2NO2 O1D ), @no2_reservoirs ];
         $weights{"Ox"} = { NO3 => 2, N2O5 => 3 };
 
-        foreach my $species (qw( Ox HO2x )) {
+        foreach my $species (qw( Ox )) {
             $kpp->family({
                     name    => $species,
                     members => $families{$species},
@@ -78,16 +79,16 @@ foreach my $mechanism (@mechanisms) {
             }
         }
 
-        remove_common_processes($production_rates{"HO2x"}, $consumption_rates{"HO2x"});
-        my $total_ho2x_production;
-        $total_ho2x_production += $production_rates{"HO2x"}{$_} foreach (keys %{$production_rates{"HO2x"}});
-        
-        foreach my $reaction (keys %{$production_rates{'HO2x'}}) {
-            $production_rates{"Ox"}{$reaction} += $production_rates{"Ox"}{'HO2 + NO'} * $production_rates{'HO2x'}{$reaction} / $total_ho2x_production;
-            $consumption_rates{"Ox"}{$reaction} += $consumption_rates{"Ox"}{'HO2 + O3'} * $consumption_rates{'HO2x'}{$reaction} / $total_ho2x_production; 
-        }
-        delete $production_rates{"Ox"}{'HO2 + NO'};
-        delete $consumption_rates{"Ox"}{'HO2 + O3'};
+#        remove_common_processes($production_rates{"HO2x"}, $consumption_rates{"HO2x"});
+#        my $total_ho2x_production;
+#        $total_ho2x_production += $production_rates{"HO2x"}{$_} foreach (keys %{$production_rates{"HO2x"}});
+#        
+#        foreach my $reaction (keys %{$production_rates{'HO2x'}}) {
+#            $production_rates{"Ox"}{$reaction} += $production_rates{"Ox"}{'HO2 + NO'} * $production_rates{'HO2x'}{$reaction} / $total_ho2x_production;
+#            $consumption_rates{"Ox"}{$reaction} += $consumption_rates{"Ox"}{'HO2 + O3'} * $consumption_rates{'HO2x'}{$reaction} / $total_ho2x_production; 
+#        }
+#        delete $production_rates{"Ox"}{'HO2 + NO'};
+#        delete $consumption_rates{"Ox"}{'HO2 + O3'};
         remove_common_processes($production_rates{"Ox"}, $consumption_rates{"Ox"});
 
         my $others = 4e8;

@@ -11,6 +11,7 @@ use PDL::NiceSlice;
 use Statistics::R;
 
 my $base = "/local/home/coates/Solvent_Emissions";
+#my @mechanisms = qw( RADM2 );
 my @mechanisms = qw( MCM MOZART RADM2 );
 #my @speciations = qw( EMEP UK08 );
 my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
@@ -57,34 +58,26 @@ foreach my $mechanism (sort keys %emissions) {
     }
 }
 $R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
-$R->run(q` mechanism.colours = c("MCM" = "#6c254f", "MOZART" = "#ef6638", "RADM2" = "#0e5c28") `);
+$R->run(q` data = mutate(data, mechanism = factor(Mechanism, labels = c("MCM v3.2", "MOZART-4", "RADM2"))) `);
 $R->run(q` speciation.colours = c("TNO" = "#000000", "IPCC" = "#2b9eb3", "EMEP" = "#ef6638", "DE94" = "#f9c500", "GR95" = "#6c254f", "GR05" = "#0352cb", "UK98" = "#0e5c28", "UK08" = "#b569b3") `);
-$R->run(q`  lm_eqn = function(m) {  l <- list(a = format(coef(m)[1], digits = 2), 
-                                    b = format(abs(coef(m)[2]), digits = 2), 
-                                    r2 = format(summary(m)$r.squared, digits = 3));
-                                    if (coef(m)[2] >= 0)  {
-                                        eq <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2,l)
-                                    } else {
-                                        eq <- substitute(italic(y) == a - b %.% italic(x)*","~~italic(r)^2~"="~r2,l)    
-                                    }
-                                    as.character(as.expression(eq));    } `);
 
 $R->run(q` plot.lines = function () { list( theme_tufte() ,
-                                            ylab("Ox Production (molecules cm-3)") ,
+                                            ylab("Total Ox Production (molecules cm-3)") ,
                                             theme(legend.title = element_blank()) ,
                                             theme(axis.line = element_line(colour = "black")) ,
                                             theme(axis.title = element_text(face = "bold")) ,
                                             theme(strip.text = element_text(face = "bold")) ,
                                             theme(panel.margin = unit(5, "mm")) ) } `);
 
-$R->run(q` final.data = filter(data, Type == "Alkanes" | Type == "Oxygenated" ) `);
-$R->run(q` eqn = final.data %>% group_by(Mechanism, Type) %>% do(mod = lm(Ox ~ Emission.Fraction, data = .), mod2 = cor(.$Ox, .$Emission.Fraction, method = "pearson")) %>% mutate(Label = paste('"y = ', sprintf('%1.2e', summary(mod)$coeff[2]), ' x + ', sprintf('%1.2e', coef(mod)['(Intercept)']), ', r = ', sprintf('%1.3f', mod2[1]), '"')) %>% select(-mod, -mod2) `);
+$R->run(q` final.data = filter(data, Type == "Alkanes" ) `);
+#$R->run(q` final.data = filter(data, Type == "Alkanes" | Type == "Oxygenated" ) `);
+$R->run(q` eqn = final.data %>% group_by(mechanism, Type) %>% do(mod2 = cor(.$Ox, .$Emission.Fraction, method = "pearson")) %>% mutate(Label = paste('"r = ', sprintf('%1.3f', mod2[1]), '"')) %>% select(-mod2) `);
 #my $p = $R->run(q` print.data.frame(eqn) `);
 #print $p, "\n"; 
 
 $R->run(q` plot = ggplot(final.data, aes(x = Emission.Fraction, y = Ox, colour = Speciation)) `,
         q` plot = plot + geom_point(size = 4) `,
-        q` plot = plot + facet_grid(Type ~ Mechanism) `,
+        q` plot = plot + facet_grid( ~ mechanism) `,
         q` plot = plot + scale_x_continuous(label = percent) `,
         q` plot = plot + xlab("Percent Emissions") `,
         q` plot = plot + scale_colour_manual(values = speciation.colours, limits = levels(data$Speciation)) `,
@@ -92,7 +85,7 @@ $R->run(q` plot = ggplot(final.data, aes(x = Emission.Fraction, y = Ox, colour =
         q` plot = plot + theme(strip.text.y = element_text(face = "bold", angle = 0)) `,
         q` plot = plot + theme(strip.text.x = element_text(face = "bold")) `,
         q` plot = plot + theme(legend.position = "top") `,
-        q` plot = plot + geom_text(data = eqn, aes(x = 0.45, y = 8.7e9, label = Label), colour = "black", size = 2.5, inherit.aes = FALSE, parse = TRUE) + geom_smooth(method = "lm", se = FALSE, colour = "black") `,
+        q` plot = plot + geom_text(data = eqn, aes(x = 0.45, y = 8.7e9, label = Label), colour = "black", inherit.aes = FALSE, parse = TRUE) + geom_smooth(method = "lm", se = FALSE, colour = "black") `,
 );
 
 $R->run(q` CairoPDF(file = "Ox_production_vs_type_emission_fraction_all_mechanisms.pdf", width = 10, height = 7) `,
