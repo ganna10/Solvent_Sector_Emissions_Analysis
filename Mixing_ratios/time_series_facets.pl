@@ -76,11 +76,14 @@ $R->run(q` my.colours = c("MCM" = "#6c254f", "MOZART" = "#ef6638", "RADM2" = "#0
 $R->run(q` plot = ggplot(data, aes(x = Time, y = Mixing.Ratio, colour = Mechanism, group = Mechanism)) `,
         q` plot = plot + geom_line() `,
         q` plot = plot + facet_wrap( ~ Speciation, nrow = 2) `,
-        q` plot = plot + theme_tufte() `,
+        q` plot = plot + theme_hc() `,
         q` plot = plot + ylab("Mixing Ratio (ppbv)") `,
         q` plot = plot + xlab("Time (days)") `,
         q` plot = plot + scale_x_continuous(limits = c(0, 7), breaks = seq(0, 7, 1), expand = c(0, 0)) `,
         q` plot = plot + ggtitle(title) `,
+        q` plot = plot + theme(strip.background = element_blank()) `,
+        q` plot = plot + theme(axis.text = element_text(colour = "black")) `,
+        q` plot = plot + theme(axis.ticks = element_line(colour = "black")) `,
         q` plot = plot + theme(axis.line = element_line(colour = "black")) `,
         q` plot = plot + theme(strip.text = element_text(face = "bold")) `,
         q` plot = plot + theme(plot.title = element_text(face = "bold")) `,
@@ -89,6 +92,7 @@ $R->run(q` plot = ggplot(data, aes(x = Time, y = Mixing.Ratio, colour = Mechanis
         q` plot = plot + theme(legend.title = element_blank()) `,
         q` plot = plot + theme(legend.position = "top") `,
         q` plot = plot + scale_colour_manual(values = my.colours) `,
+        #q` plot = plot + theme(panel.grid.major.y = element_line(colour ="black")) `,
 );
 
 $R->run(q` CairoPDF(file = file.name, width = 10, height = 7) `,
