@@ -85,6 +85,7 @@ foreach my $mechanism (sort keys %data) {
 $R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
 $R->run(q` data$Species = factor(data$Species, levels = c("NC6H14", "M2PE", "M3PE", "CHEX", "NC7H16", "M2HEX", "M3HEX", "NC8H18", "NC9H20", "NC10H22", "NC11H24", "NC12H26")) `);
 $R->run(q` my.colours = c("NC6H14" = "#6c254f", "M2PE" = "#f9c500", "M3PE" = "#0e5c28", "CHEX" = "#ef6638", "NC7H16" = "#2b9eb3", "M2HEX" = "#b569b3", "M3HEX" = "#f7c56c", "NC8H18" = "#0352cb", "NC9H20" = "#ae4901", "NC10H22" = "#4c9383", "NC11H24" = "#8c1531", "NC12H26" = "#77aecc") `); 
+$R->run(q` write.table(data, file = "HOx_higher_alkanes_in_MCM_species.csv", sep = ",", row.name = FALSE, quote = FALSE) `);
 
 $R->run(q` plot = ggplot(data, aes(x = Mechanism, y = HOx, fill = Species, order = Species)) `,
         q` plot = plot + geom_bar(stat = "identity") `,
