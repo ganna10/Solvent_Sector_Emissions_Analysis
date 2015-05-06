@@ -1,7 +1,6 @@
 #! /usr/bin/env perl
-# Compare HOx production budgets from the higher alkanes between speciations and mechanisms, Solvent only runs
-# Version 0: Jane Coates 29/4/2015
-# Version 1: Jane Coates 5/5/2015 allocating to parent VOC after removing the common processes of reactions first
+# Compare HOx production budgets from the higher alkanes between speciations and mechanisms, Solvent only runs, allocated to reactions
+# Version 0: Jane Coates 4/5/2015
 
 use strict;
 use diagnostics;
@@ -13,13 +12,14 @@ use Statistics::R;
 
 #my $base = "/work/users/jco/Solvent_Emissions";
 my $base = "/local/home/coates/Solvent_Emissions";
-#my @mechanisms = qw( RADM2 );
+#my @mechanisms = qw( MOZART );
 my @mechanisms = qw( MCM MOZART RADM2 );
-#my @speciations = qw( GR95 );
+#my @speciations = qw( TNO );
 my @speciations = qw( TNO IPCC DE94 GR95 GR05 UK98 UK08 );
 my (%families, %weights, %data);
 $families{"HOx"} = [ qw( OH HO2 HO2NO2 ) ];
 
+my $others_max = 6e7;
 foreach my $mechanism (@mechanisms) {
     foreach my $speciation (@speciations) { 
         next if ($speciation eq "EMEP");
@@ -54,7 +54,20 @@ foreach my $speciation (keys %{$data{"MCM"}}) {
             $allocated{$item} += $data{"MCM"}{$speciation}{$dir}{$item};
         }
     }
-    $data{"MCM"}{$speciation} = \%allocated;
+    foreach my $reactants (keys %allocated) {
+        if ($allocated{$reactants} < $others_max) {
+            $allocated{"Others"} += $allocated{$reactants};
+            delete $allocated{$reactants};
+        }
+    }
+    my @sorted = reverse sort { $allocated{$a} <=> $allocated{$b} } keys %allocated;
+    my @final_sorted;
+    foreach (@sorted) {
+        next if ($_ =~ /Others/);
+        push @final_sorted, { $_ => $allocated{$_} };
+    }
+    push @final_sorted, { "Others" => $allocated{"Others"} } if (defined $allocated{"Others"});
+    $data{"MCM"}{$speciation} = \@final_sorted;
 }
 
 my $R = Statistics::R->new();
@@ -70,12 +83,14 @@ foreach my $mechanism (sort keys %data) {
     foreach my $speciation (sort keys %{$data{$mechanism}}) {
         $R->set('speciation', $speciation);
         $R->run(q` pre = data.frame(Mechanism = mechanism, Speciation = speciation) `);
-        foreach my $species (sort keys %{$data{$mechanism}{$speciation}}) {
-            $R->set('species', $species);
-            $R->set('hox', $data{$mechanism}{$speciation}{$species});
-            $R->run(q` pre[species] = hox `);
+        foreach my $ref (@{$data{$mechanism}{$speciation}}) {
+            foreach my $reactants (sort keys %$ref) {
+                $R->set('reactants', $reactants);
+                $R->set('hox', $ref->{$reactants});
+                $R->run(q` pre[reactants] = hox `);
+            }
         }
-        $R->run(q` pre = gather(pre, Species, HOx, -Mechanism, -Speciation) `,
+        $R->run(q` pre = gather(pre, Reactants, HOx, -Mechanism, -Speciation) `,
                 q` data = rbind(data, pre) `,
         );
     }
@@ -84,11 +99,11 @@ foreach my $mechanism (sort keys %data) {
 #print $p, "\n";
 
 $R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
-$R->run(q` data$Species = factor(data$Species, levels = c("NC6H14", "M2PE", "M3PE", "CHEX", "NC7H16", "M2HEX", "M3HEX", "NC8H18", "NC9H20", "NC10H22", "NC11H24", "NC12H26")) `);
-$R->run(q` my.colours = c("NC6H14" = "#6c254f", "M2PE" = "#f9c500", "M3PE" = "#0e5c28", "CHEX" = "#ef6638", "NC7H16" = "#2b9eb3", "M2HEX" = "#b569b3", "M3HEX" = "#f7c56c", "NC8H18" = "#0352cb", "NC9H20" = "#ae4901", "NC10H22" = "#4c9383", "NC11H24" = "#8c1531", "NC12H26" = "#77aecc") `); 
-$R->run(q` write.table(data, file = "HOx_higher_alkanes_in_MCM_species.csv", sep = ",", row.name = FALSE, quote = FALSE) `);
+#$R->run(q` data$Reactants = factor(data$Reactants, levels = c("NC6H14", "M2PE", "M3PE", "CHEX", "NC7H16", "M2HEX", "M3HEX", "NC8H18", "NC9H20", "NC10H22", "NC11H24", "NC12H26")) `);
+#$R->run(q` my.colours = c("NC6H14" = "#6c254f", "M2PE" = "#f9c500", "M3PE" = "#0e5c28", "CHEX" = "#ef6638", "NC7H16" = "#2b9eb3", "M2HEX" = "#b569b3", "M3HEX" = "#f7c56c", "NC8H18" = "#0352cb", "NC9H20" = "#ae4901", "NC10H22" = "#4c9383", "NC11H24" = "#8c1531", "NC12H26" = "#77aecc") `); 
+#$R->run(q` write.table(data, file = "HOx_higher_alkanes_in_MCM_species.csv", sep = ",", row.name = FALSE, quote = FALSE) `);
 
-$R->run(q` plot = ggplot(data, aes(x = Mechanism, y = HOx, fill = Species, order = Species)) `,
+$R->run(q` plot = ggplot(data, aes(x = Mechanism, y = HOx, fill = Reactants)) `,
         q` plot = plot + geom_bar(stat = "identity") `,
         q` plot = plot + facet_wrap( ~ Speciation, nrow = 2) `,
         q` plot = plot + theme_tufte() `,
@@ -102,10 +117,10 @@ $R->run(q` plot = ggplot(data, aes(x = Mechanism, y = HOx, fill = Species, order
         q` plot = plot + ylab("Total HOx Production (molecules cm-3)") `,
         q` plot = plot + scale_y_continuous(expand = c(0, 0)) `,
         q` plot = plot + scale_x_discrete(expand = c(0, 0)) `,
-        q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(levels(data$Species))) `,
+        #q` plot = plot + scale_fill_manual(values = my.colours, limits = rev(levels(data$Reactants))) `,
 );
 
-$R->run(q` CairoPDF(file = "Higher_alkanes_HOx_production_facet_speciation.pdf", width = 10, height = 7) `,
+$R->run(q` CairoPDF(file = "Higher_alkanes_HOx_production_reactions.pdf", width = 10, height = 7) `,
         q` print(plot) `,
         q` dev.off() `,
 );
@@ -188,55 +203,59 @@ sub get_data {
         $consumption_rates{$parent}{$reactants} += $rate(1:$ntime-2);
     }
 
-    my %final_production;
+    print "before\n";
     foreach my $parent (keys %production_rates) {
+        print "$_ : ", $production_rates{$parent}{$_}->sum, "\n" foreach keys %{$production_rates{$parent}};
         remove_common_processes($production_rates{$parent}, $consumption_rates{$parent});
-        foreach my $reactant (keys %{$production_rates{$parent}}) {
-            $final_production{$parent} += $production_rates{$parent}{$reactant}->sum / $no_dirs;
-        }
     }
-    
-    #print "before\n";
-    #print "$_ : $final_production{$_}\n" foreach keys %final_production;
+
     my %contributions;
-    if ($mechanism eq "RADM2" or $mechanism eq "MOZART") { #allocation of RADM2 and MOZART emitted species to MCM species that are Higher Alkanes
-        open my $in, '<:encoding(utf-8)', "Higher_alkanes_contributions_of_MCM_species_in_MOZART_RADM2.csv" or die $!;
+    if ($mechanism eq "RADM2" or $mechanism eq "MOZART") { #allocation of RADM2 and MOZART emitted species to Higher Alkanes
+        open my $in, '<:encoding(utf-8)', "Higher_alkanes_RADM2_MOZ_fractional_contributions.csv" or die $!;
         my @lines = <$in>;
         close $in;
         foreach my $line (@lines) {
             chomp $line;
-            my ($mechanism, $speciation, $mech_species, $mcm_species, $contribution) = split /,/, $line;
-            $contributions{$mechanism}{$speciation}{$mech_species}{$mcm_species} = $contribution;
+            my ($mechanism, $speciation, $species, $contribution) = split /,/, $line;
+            $contributions{$mechanism}{$speciation}{$species} = $contribution;
         }
 
-        foreach my $species (keys %final_production) {
-            if (defined $contributions{$mechanism}{$speciation}{$species}) {
-                foreach my $mcm_species (keys %{$contributions{$mechanism}{$speciation}{$species}}) {
-                    $final_production{$mcm_species} = $contributions{$mechanism}{$speciation}{$species}{$mcm_species} * $final_production{$species};
-                }
+        print "after\n";
+        foreach my $parent (keys %production_rates) {
+            foreach my $reactants (keys %{$production_rates{$parent}}) {
+                print "$reactants : ", $production_rates{$parent}{$reactants}->sum, "\n";
+                if (defined $contributions{$mechanism}{$speciation}{$parent}) {
+                    $production_rates{$parent}{$reactants} *= $contributions{$mechanism}{$speciation}{$parent};
+                } else {
+                    delete $production_rates{$parent}{$reactants};
+                } 
             }
-            delete $final_production{$species};
         }
     }
-    #print "after\n";
-    #print "$_ : $final_production{$_}\n" foreach keys %final_production;
-#    if ($mechanism eq "RADM2" or $mechanism eq "MOZART") { #allocation of RADM2 and MOZART emitted species to Higher Alkanes
-#        open my $in, '<:encoding(utf-8)', "Higher_alkanes_RADM2_MOZ_fractional_contributions.csv" or die $!;
-#        my @lines = <$in>;
-#        close $in;
-#        foreach my $line (@lines) {
-#            chomp $line;
-#            my ($mechanism, $speciation, $species, $contribution) = split /,/, $line;
-#            $contributions{$mechanism}{$speciation}{$species} = $contribution;
-#        }
-#
-#        foreach my $species (keys %final_production) {
-#            if (defined $contributions{$mechanism}{$speciation}{$species}) {
-#                $final_production{$species} *= $contributions{$mechanism}{$speciation}{$species};
-#            } else {
-#                delete $final_production{$species};
-#            } 
-#        }
-#    }
-    return \%final_production;
+    my %final;
+    foreach my $parent (keys %production_rates) {
+        foreach my $reactants (keys %{$production_rates{$parent}}) {
+            #print "$reactants : ", $production_rates{$parent}{$reactants}->sum / $no_dirs, "\n";
+            $final{$reactants} += $production_rates{$parent}{$reactants}->sum / $no_dirs;
+        }
+    }
+
+    if ($mechanism =~ /MOZ|RAD/) {
+        foreach my $reaction (keys %final) {
+            if ($final{$reaction} < $others_max) {
+                $final{"Others"} += $final{$reaction};
+                delete $final{$reaction};
+            }
+        }
+        my @sorted = reverse sort { $final{$a} <=> $final{$b} } keys %final;
+        my @final_sorted;
+        foreach (@sorted) {
+            next if ($_ =~ /Others/);
+            push @final_sorted, { $_ => $final{$_} };
+        }
+        push @final_sorted, { "Others" => $final{"Others"} } if (defined $final{"Others"});
+        return \@final_sorted;
+    } else {
+        return \%final;
+    }
 }

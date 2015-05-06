@@ -55,7 +55,17 @@ $R->run(q` plot = ggplot(data, aes(x = Mechanism, y = Ox)) `,
         q` plot = plot + facet_grid(Time ~ Speciation) `,
 );
 
-$R->run(q` CairoPDF(file = "Daily_Ox_budgets_Solvents_only.pdf", width = 10, height = 7) `,
+$R->run(q` CairoPDF(file = "Daily_Ox_budgets_Solvents_only_by_Speciation.pdf", width = 10, height = 7) `,
+        q` print(plot) `,
+        q` dev.off() `,
+);
+
+$R->run(q` plot = ggplot(data, aes(x = Speciation, y = Ox)) `,
+        q` plot = plot + geom_bar(stat = "identity") `,
+        q` plot = plot + facet_grid(Time ~ Mechanism) `,
+);
+
+$R->run(q` CairoPDF(file = "Daily_Ox_budgets_Solvents_only_by_Mechanism.pdf", width = 10, height = 7) `,
         q` print(plot) `,
         q` dev.off() `,
 );

@@ -10,13 +10,13 @@ use PDL;
 use PDL::NiceSlice;
 use Statistics::R;
 
-my $base = "/work/users/jco/Solvent_Emissions";
-#my $base = "/local/home/coates/Solvent_Emissions";
+#my $base = "/work/users/jco/Solvent_Emissions";
+my $base = "/local/home/coates/Solvent_Emissions";
 my @mechanisms = qw( MCM MOZART RADM2 );
-my @speciations = qw( GR95 );
-#my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
+#my @speciations = qw( GR95 );
+my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
 my (%families, %weights, %data);
-$families{"HOx"} = [ qw( OH HO2 ) ];
+$families{"HOx"} = [ qw( OH HO2 HO2NO2 ) ];
 
 my %category_mapping = (
     MOZART  =>  {
@@ -62,7 +62,7 @@ my %category_mapping = (
                     },
         EMEP    =>  {   HC3     => [ '0.419 Alcohols', '0.581 Butanes' ],
                     }, 
-        DE94    =>  {   HC3     => [ '0.661 Alcohols', '0.181 Butanes', '0.086 Esters', '0.001 Ethers', '0.047 Propane' ],
+        DE94    =>  {   HC3     => [ '0.661 Alcohols', '0.181 Butanes', '0.024 Chlorinated', '0.086 Esters', '0.001 Ethers', '0.047 Propane' ],
                         HC5     => [ '0.317 Alcohols', '0.201 Esters', '0.402 Higher_alkanes', '0.080 Ketones' ],
                         HC8     => [ '0.539 Alcohols', '0.028 Ethers', '0.433 Higher_alkanes' ],
                         KET     => [ '0.063 Alcohols', '0.937 Ketones' ],
@@ -168,6 +168,8 @@ foreach my $mechanism (sort keys %data) {
 #my $p = $R->run(q` print(data) `);
 #print $p, "\n";
 $R->run(q` my.colours = c("Acids" = "#cc6329", "Alcohols" = "#6c254f", "Benzene" = "#8c6238", "Butanes" = "#86b650", "Chlorinated" = "#f9c500", "CO" = "#898989", "Esters" = "#f3aa7f", "Ethane" = "#77aecc", "Ethene" = "#1c3e3d", "Ethers" = "#ba8b01", "Higher alkanes" = "#0e5c28", "Ketones" = "#ef6638", "Aldehydes" = "#8ed6d2", "Other alkenes, alkynes, dienes" = "#b569b3", "Other aromatics" = "#e7e85e", "Others" = "#2b9eb3", "Pentanes" = "#8c1531", "Propane" = "#9bb18d", "Propene" = "#623812", "Terpenes" = "#c9a415", "Toluene" = "#0352cb", "Trimethylbenzenes" = "#ae4901", "Xylenes" = "#1b695b", "CO" = "#6d6537", "Methane" = "#0c3f78", "Inorganic" = "#000000") `);
+$R->run(q` write.table(data, file = "HOx_allocated_production_data.csv", quote = FALSE, sep = ",", row.name = FALSE) `);
+
 $R->run(q` plot.lines = function () { list( theme_tufte() ,
                                             ggtitle("Cumulative HOx Production Budget") ,
                                             ylab("HOx Production (molecules cm-3)") ,
@@ -247,25 +249,25 @@ sub get_data {
         }
     }
 
-#    for (0..$#$consumers) {
-#        my $reaction = $consumers->[$_];
-#        my $reaction_number = $kpp->reaction_number($reaction);
-#        my $rate = $mecca->rate($reaction_number) * $consumer_yields->[$_];
-#        next if ($rate->sum == 0); 
-#        my ($number, $parent) = split /_/, $reaction;
-#        if (defined $parent) { 
-#            $consumption_rates{$parent} += $rate(1:$ntime-2);
-#        } else {
-#            my $reaction_string = $kpp->reaction_string($reaction);
-#            if ($reaction_string =~ /notag/) {
-#                $consumption_rates{"notag"} += $rate(1:$ntime-2);
-#            } else {
-#                my ($reactants, $products) = split / = /, $reaction_string;
-#                $consumption_rates{$reactants} += $rate(1:$ntime-2);
-#            }
-#        }
-#    }
-    #remove_common_processes(\%production_rates, \%consumption_rates);
+    for (0..$#$consumers) {
+        my $reaction = $consumers->[$_];
+        my $reaction_number = $kpp->reaction_number($reaction);
+        my $rate = $mecca->rate($reaction_number) * $consumer_yields->[$_];
+        next if ($rate->sum == 0); 
+        my ($number, $parent) = split /_/, $reaction;
+        if (defined $parent) { 
+            $consumption_rates{$parent} += $rate(1:$ntime-2);
+        } else {
+            my $reaction_string = $kpp->reaction_string($reaction);
+            if ($reaction_string =~ /notag/) {
+                $consumption_rates{"notag"} += $rate(1:$ntime-2);
+            } else {
+                my ($reactants, $products) = split / = /, $reaction_string;
+                $consumption_rates{$reactants} += $rate(1:$ntime-2);
+            }
+        }
+    }
+    remove_common_processes(\%production_rates, \%consumption_rates);
     delete $production_rates{"notag"};
     my %final_categories;
     foreach my $process (keys %production_rates) {
