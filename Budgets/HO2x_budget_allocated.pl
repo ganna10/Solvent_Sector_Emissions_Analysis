@@ -1,6 +1,7 @@
 #! /usr/bin/env perl
 # Allocate Cumulative HO2x production budgets back to categories used to defined speciations
-# Jane Coates 4/4/2015
+# Version 0: Jane Coates 4/4/2015
+# Version 1: Jane Coates 7/5/2015 updated category mapping and minor updates
 
 use strict;
 use diagnostics;
@@ -65,7 +66,7 @@ my %category_mapping = (
                     },
         EMEP    =>  {   HC3     => [ '0.419 Alcohols', '0.581 Butanes' ],
                     }, 
-        DE94    =>  {   HC3     => [ '0.661 Alcohols', '0.181 Butanes', '0.086 Esters', '0.001 Ethers', '0.047 Propane' ],
+        DE94    =>  {   HC3     => [ '0.661 Alcohols', '0.181 Butanes', '0.024 Chlorinated', '0.086 Esters', '0.001 Ethers', '0.047 Propane' ],
                         HC5     => [ '0.317 Alcohols', '0.201 Esters', '0.402 Higher_alkanes', '0.080 Ketones' ],
                         HC8     => [ '0.539 Alcohols', '0.028 Ethers', '0.433 Higher_alkanes' ],
                         KET     => [ '0.063 Alcohols', '0.937 Ketones' ],
@@ -103,7 +104,6 @@ my %category_mapping = (
                     },
                 }
 );
-
 
 foreach my $mechanism (@mechanisms) {
     foreach my $speciation (@speciations) {
@@ -212,6 +212,8 @@ $R->run(q` CairoPDF(file = "Cumulative_HO2x_budget_allocated_facet_speciation.pd
         q` dev.off() `,
 );
 
+$R->run(q` write.table(data, file = "HO2x_cumulative_production.csv", row.name = FALSE, quote = FALSE, sep = ";") `);
+
 $R->stop();
 
 sub remove_common_processes {
@@ -249,16 +251,18 @@ sub remove_common_processes {
 
 sub get_data {
     my ($mecca, $kpp, $mechanism, $speciation, $dir, $no_runs) = @_;
+    $no_runs = 1 unless (defined $no_runs);
     my (%production_rates, %consumption_rates);
+    my $species = "HO2x";
     $kpp->family({
-            name    => "HO2x",
-            members => $families{"HO2x"},
-            weights => $weights{"HO2x"},
+            name    => $species,
+            members => $families{$species},
+            weights => $weights{$species},
     });
-    my $producers = $kpp->producing("HO2x");
-    my $producer_yields = $kpp->effect_on("HO2x", $producers);
-    my $consumers = $kpp->consuming("HO2x");
-    my $consumer_yields = $kpp->effect_on("HO2x", $consumers);
+    my $producers = $kpp->producing($species);
+    my $producer_yields = $kpp->effect_on($species, $producers);
+    my $consumers = $kpp->consuming($species);
+    my $consumer_yields = $kpp->effect_on($species, $consumers);
     print "No consumers in $mechanism and $speciation\n" if (@$consumers == 0);
     print "No producers in $mechanism and $speciation\n" if (@$producers == 0);
 
