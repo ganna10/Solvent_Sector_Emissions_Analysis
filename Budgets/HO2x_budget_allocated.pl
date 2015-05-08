@@ -2,6 +2,7 @@
 # Allocate Cumulative HO2x production budgets back to categories used to defined speciations
 # Version 0: Jane Coates 4/4/2015
 # Version 1: Jane Coates 7/5/2015 updated category mapping and minor updates
+# Version 2: Jane Coates 8/5/2015 daily sum not cumulative
 
 use strict;
 use diagnostics;
@@ -21,6 +22,9 @@ $families{"HO2x"} = [ qw( HO2 HO2NO2 ) ];
 
 my $mecca = MECCA->new("$base/RADM2/TNO_Solvents_Only/boxmodel");
 my $ntime = $mecca->time->nelem;
+my $dt = $mecca->dt->at(0);
+my $n_per_day = 86400 / $dt;
+my $n_days = int $ntime / $n_per_day;
 
 my %category_mapping = (
     MOZART  =>  {
@@ -151,21 +155,23 @@ $R->run(q` library(ggplot2) `,
 $R->run(q` my.colours = c("Acids" = "#cc6329", "Alcohols" = "#6c254f", "Benzene" = "#8c6238", "Butanes" = "#86b650", "Chlorinated" = "#f9c500", "CO" = "#898989", "Esters" = "#f3aa7f", "Ethane" = "#77aecc", "Ethene" = "#1c3e3d", "Ethers" = "#ba8b01", "Higher alkanes" = "#0e5c28", "Ketones" = "#ef6638", "Aldehydes" = "#8ed6d2", "Other alkenes, alkynes, dienes" = "#b569b3", "Other aromatics" = "#e7e85e", "Others" = "#2b9eb3", "Pentanes" = "#8c1531", "Propane" = "#9bb18d", "Propene" = "#623812", "Terpenes" = "#c9a415", "Toluene" = "#0352cb", "Trimethylbenzenes" = "#ae4901", "Xylenes" = "#1b695b", "CO" = "#6d6537", "Methane" = "#0c3f78", "Inorganic" = "#000000") `);
 
 $R->run(q` data = data.frame() `);
+$R->set('Time', [("Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7")]);
 foreach my $mechanism (sort keys %data) {
     #print "$mechanism\n";
     $R->set('mechanism', $mechanism);
     foreach my $speciation (sort keys %{$data{$mechanism}}) {
         #print "\t$speciation\n";
-        $R->run(q` pre = data.frame(Mechanism = mechanism) `);
+        $R->run(q` pre = data.frame(Time, Mechanism = rep(mechanism, length(Time))) `);
         $R->set('speciation', $speciation);
-        $R->run(q` pre$Speciation = speciation `);
+        $R->run(q` pre$Speciation = rep(speciation, length(Time)) `);
         foreach my $type (sort keys %{$data{$mechanism}{$speciation}}) {
             #print "\t\t$type\n";
+            next if ($type eq "Methane" or $type eq "CO");
             $R->set('type', $type);
-            $R->set('HO2x.production', $data{$mechanism}{$speciation}{$type});
+            $R->set('HO2x.production', [ map { $_ } $data{$mechanism}{$speciation}{$type}->dog ]);
             $R->run(q` pre[type] = HO2x.production `);
         }
-        $R->run(q` pre = gather(pre, Type, HO2x.Production, -Mechanism, -Speciation) `,
+        $R->run(q` pre = gather(pre, Type, HO2x.Production, -Mechanism, -Speciation, -Time) `,
                 q` data = rbind(data, pre) `,
         );
         #my $p = $R->run(q` print(pre) `);
@@ -192,22 +198,22 @@ $R->run(q` plot.lines = function () { list( theme_tufte() ,
 
 $R->run(q` plot = ggplot(data, aes(x = Speciation, y = HO2x.Production, fill = Type)) `,
         q` plot = plot + geom_bar(stat = "identity") `,
-        q` plot = plot + facet_wrap( ~ Mechanism, nrow = 1 ) `,
+        q` plot = plot + facet_grid(Time ~ Mechanism) `,
         q` plot = plot + plot.lines() `,
 );
 
-$R->run(q` CairoPDF(file = "Cumulative_HO2x_budget_allocated_facet_mechanism.pdf", width = 8.6, height = 6) `,
+$R->run(q` CairoPDF(file = "Cumulative_HO2x_budget_allocated_facet_mechanism.pdf", width = 10, height = 6) `,
         q` print(plot) `,
         q` dev.off() `,
 );
 
 $R->run(q` plot = ggplot(data, aes(x = Mechanism, y = HO2x.Production, fill = Type)) `,
         q` plot = plot + geom_bar(stat = "identity") `,
-        q` plot = plot + facet_wrap( ~ Speciation, nrow = 2 ) `,
+        q` plot = plot + facet_grid(Time ~ Speciation) `,
         q` plot = plot + plot.lines() `,
 );
 
-$R->run(q` CairoPDF(file = "Cumulative_HO2x_budget_allocated_facet_speciation.pdf", width = 8.6, height = 6) `,
+$R->run(q` CairoPDF(file = "Cumulative_HO2x_budget_allocated_facet_speciation.pdf", width = 10, height = 6) `,
         q` print(plot) `,
         q` dev.off() `,
 );
@@ -311,16 +317,16 @@ sub get_data {
                     foreach my $entry (@{$category_mapping{$mechanism}{$speciation}{$process}}) {
                         my ($factor, $category) = split / /, $entry;
                         $category =~ s/_/ /g;
-                        $final_categories{$category} += $factor * $production_rates{$process}->sum;
+                        $final_categories{$category} += $factor * $production_rates{$process};
                     }
                 } else {
                     my $category = get_category($process, $mechanism, $speciation);
-                    $final_categories{$category} += $production_rates{$process}->sum;
+                    $final_categories{$category} += $production_rates{$process};
                 }
             }
         } else {
             my $category = get_category($process, $mechanism, $speciation);
-            $final_categories{$category} += $production_rates{$process}->sum;
+            $final_categories{$category} += $production_rates{$process};
         }
     }
     if ($mechanism eq "MCM") {
@@ -329,6 +335,11 @@ sub get_data {
                 $final_categories{$category} /= $no_runs;
             }
         }
+    }
+
+    foreach my $category (keys %final_categories) {
+        my $reshape = $final_categories{$category}->reshape($n_per_day, $n_days);
+        $final_categories{$category} = $reshape->sumover;
     }
     return \%final_categories;
 }
