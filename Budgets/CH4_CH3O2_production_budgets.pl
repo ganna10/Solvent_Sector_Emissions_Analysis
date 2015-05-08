@@ -11,14 +11,24 @@ use KPP;
 use Statistics::R;
 
 my $base = "/local/home/coates/Solvent_Emissions";
-my @mechanisms = qw( MOZART RADM2 );
+my @mechanisms = qw( MCM MOZART RADM2 );
 my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
 my (%families, %weights, %data);
-$families{"CH3O2x"} = [ qw( CH3O2_CH4 CH3O2NO2_CH4 MO2_CH4 ) ];
+$families{"CH3O2x"} = [ qw( CH3O_CH4 CH3O2_CH4 CH3O2NO2_CH4 MO2_CH4 ) ];
 
 foreach my $mechanism (@mechanisms) {
     foreach my $speciation (@speciations) {
         if ($mechanism eq "MCM") {
+            opendir DIR, "$base/$mechanism" or die $!;
+            my @dirs = grep { $_ =~ /${speciation}_tagged/ } readdir DIR;
+            closedir DIR;
+            my $no_dirs = scalar @dirs;
+            foreach my $directory (@dirs) {
+                my $dir = "$base/$mechanism/$directory";
+                my $mecca = MECCA->new("$dir/boxmodel");
+                my $kpp = KPP->new("$dir/gas.eqn");
+                $data{$mechanism}{$speciation}{$directory} = get_data($mecca, $kpp, $mechanism, $speciation, $no_dirs);
+            }
         } else {
             my $dir = "$base/$mechanism/${speciation}_tagged_solvents_only";
             my $mecca = MECCA->new("$dir/boxmodel");
@@ -26,6 +36,16 @@ foreach my $mechanism (@mechanisms) {
             $data{$mechanism}{$speciation} = get_data($mecca, $kpp, $mechanism, $speciation);
         }
     }
+}
+
+foreach my $speciation (keys %{$data{"MCM"}}) {
+    my %allocated;
+    foreach my $dir (keys %{$data{"MCM"}{$speciation}}) {
+        foreach my $item (keys %{$data{"MCM"}{$speciation}{$dir}}) {
+            $allocated{$item} += $data{"MCM"}{$speciation}{$dir}{$item};
+        }
+    }
+    $data{"MCM"}{$speciation} = \%allocated;
 }
 
 my $R = Statistics::R->new();
@@ -159,6 +179,6 @@ sub get_data {
         }
     }
     remove_common_processes($production_rates{"CH3O2x"}, $consumption_rates{"CH3O2x"}); 
-    $production_rates{"CH3O2x"}{$_} = $production_rates{"CH3O2x"}{$_}->sum foreach (keys %{$production_rates{"CH3O2x"}});
+    $production_rates{"CH3O2x"}{$_} = $production_rates{"CH3O2x"}{$_}->sum / $no_dirs foreach (keys %{$production_rates{"CH3O2x"}});
     return $production_rates{"CH3O2x"};
 }

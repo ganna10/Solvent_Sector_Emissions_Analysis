@@ -11,7 +11,8 @@ use KPP;
 use Statistics::R;
 
 my $base = "/local/home/coates/Solvent_Emissions";
-my @mechanisms = qw( MOZART RADM2 );
+my @mechanisms = qw( MCM MOZART RADM2 );
+#my @speciations = qw( TNO );
 my @speciations = qw( TNO IPCC EMEP DE94 GR95 GR05 UK98 UK08 );
 my (%families, %weights, %data);
 $families{"HO2x"} = [ qw( HO2 HO2NO2 ) ];
@@ -19,6 +20,16 @@ $families{"HO2x"} = [ qw( HO2 HO2NO2 ) ];
 foreach my $mechanism (@mechanisms) {
     foreach my $speciation (@speciations) {
         if ($mechanism eq "MCM") {
+            opendir DIR, "$base/$mechanism" or die $!;
+            my @dirs = grep { $_ =~ /${speciation}_tagged/ } readdir DIR;
+            closedir DIR;
+            my $no_dirs = scalar @dirs;
+            foreach my $directory (@dirs) {
+                my $dir = "$base/$mechanism/$directory";
+                my $mecca = MECCA->new("$dir/boxmodel");
+                my $kpp = KPP->new("$dir/gas.eqn");
+                $data{$mechanism}{$speciation}{$directory} = get_data($mecca, $kpp, $mechanism, $speciation, $no_dirs);
+            }
         } else {
             my $dir = "$base/$mechanism/${speciation}_tagged_solvents_only";
             my $mecca = MECCA->new("$dir/boxmodel");
@@ -26,6 +37,16 @@ foreach my $mechanism (@mechanisms) {
             $data{$mechanism}{$speciation} = get_data($mecca, $kpp, $mechanism, $speciation);
         }
     }
+}
+
+foreach my $speciation (keys %{$data{"MCM"}}) {
+    my %allocated;
+    foreach my $dir (keys %{$data{"MCM"}{$speciation}}) {
+        foreach my $item (keys %{$data{"MCM"}{$speciation}{$dir}}) {
+            $allocated{$item} += $data{"MCM"}{$speciation}{$dir}{$item};
+        }
+    }
+    $data{"MCM"}{$speciation} = \%allocated;
 }
 
 my $R = Statistics::R->new();
@@ -159,6 +180,6 @@ sub get_data {
         }
     }
     remove_common_processes($production_rates{"HO2x"}, $consumption_rates{"HO2x"}); 
-    $production_rates{"HO2x"}{$_} = $production_rates{"HO2x"}{$_}->sum foreach (keys %{$production_rates{"HO2x"}});
+    $production_rates{"HO2x"}{$_} = $production_rates{"HO2x"}{$_}->sum / $no_dirs foreach (keys %{$production_rates{"HO2x"}});
     return $production_rates{"HO2x"};
 }

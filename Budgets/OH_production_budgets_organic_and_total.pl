@@ -123,8 +123,10 @@ sub get_data {
         my $rate = $mecca->rate($reaction_number) * $producer_yields->[$_];
         next if ($rate->sum == 0);
         my ($number, $parent) = split /_/, $reaction;
-        if (defined $parent) {
-            $production_rate{$parent} += $rate->sum / $no_dirs;
+        if (defined $parent and $parent eq "notag" ) {
+            $production_rate{"notag"} += $rate->sum / $no_dirs;
+        } elsif (defined $parent) {
+            $production_rate{"Organic"} += $rate->sum / $no_dirs;
         } else {
             my $reaction_string = $kpp->reaction_string($reaction);
             $production_rate{$reaction_string} += $rate->sum / $no_dirs;
