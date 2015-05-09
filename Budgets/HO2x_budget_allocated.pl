@@ -151,6 +151,7 @@ $R->run(q` library(ggplot2) `,
         q` library(Cairo) `,
         q` library(ggthemes) `,
         q` library(grid) `,
+        q` library(dplyr) `,
 );
 $R->run(q` my.colours = c("Acids" = "#cc6329", "Alcohols" = "#6c254f", "Benzene" = "#8c6238", "Butanes" = "#86b650", "Chlorinated" = "#f9c500", "CO" = "#898989", "Esters" = "#f3aa7f", "Ethane" = "#77aecc", "Ethene" = "#1c3e3d", "Ethers" = "#ba8b01", "Higher alkanes" = "#0e5c28", "Ketones" = "#ef6638", "Aldehydes" = "#8ed6d2", "Other alkenes, alkynes, dienes" = "#b569b3", "Other aromatics" = "#e7e85e", "Others" = "#2b9eb3", "Pentanes" = "#8c1531", "Propane" = "#9bb18d", "Propene" = "#623812", "Terpenes" = "#c9a415", "Toluene" = "#0352cb", "Trimethylbenzenes" = "#ae4901", "Xylenes" = "#1b695b", "CO" = "#6d6537", "Methane" = "#0c3f78", "Inorganic" = "#000000") `);
 
@@ -166,7 +167,7 @@ foreach my $mechanism (sort keys %data) {
         $R->run(q` pre$Speciation = rep(speciation, length(Time)) `);
         foreach my $type (sort keys %{$data{$mechanism}{$speciation}}) {
             #print "\t\t$type\n";
-            next if ($type eq "Methane" or $type eq "CO");
+            #next if ($type eq "Methane" or $type eq "CO" or $type eq "Inorganic");
             $R->set('type', $type);
             $R->set('HO2x.production', [ map { $_ } $data{$mechanism}{$speciation}{$type}->dog ]);
             $R->run(q` pre[type] = HO2x.production `);
@@ -178,10 +179,11 @@ foreach my $mechanism (sort keys %data) {
         #print $p, "\n";
     }
 }
-$R->run(q` data$Type = factor(data$Type, levels = c("Acids", "Alcohols", "Aldehydes", "Benzene", "Butanes", "CO", "Chlorinated", "Esters", "Ethane", "Ethene", "Ethers", "Higher alkanes", "Inorganic", "Ketones", "Methane", "Other alkenes, alkynes, dienes", "Other aromatics", "Pentanes", "Propane", "Propene", "Terpenes", "Toluene", "Trimethylbenzenes", "Xylenes")) `);
 $R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
+$R->run(q` data$Type = factor(data$Type, levels = c("Methane", "CO", "Inorganic", "Ethane", "Propane", "Butanes", "Pentanes", "Higher alkanes", "Ethene", "Propene", "Terpenes", "Other alkenes, alkynes, dienes", "Benzene", "Toluene", "Trimethylbenzenes", "Xylenes", "Other aromatics", "Acids", "Alcohols", "Aldehydes", "Esters", "Ethers", "Ketones", "Chlorinated")) `);
+$R->run(q` data = mutate(data, mechanism = factor(Mechanism, labels = c("MCM v3.2", "MOZART-4", "RADM2"))) `);
+$R->run(q` begin = filter(data, Time == "Day 1" | Time == "Day 2" | Time == "Day 3" | Time == "Day 4" ) `);
 $R->run(q` plot.lines = function () { list( theme_tufte() ,
-                                            ggtitle("Cumulative HO2x Production Budget") ,
                                             ylab("HO2x Production (molecules cm-3)") ,
                                             scale_y_continuous(expand = c(0, 0)) ,
                                             scale_x_discrete(expand = c(0, 0)) ,
@@ -192,28 +194,29 @@ $R->run(q` plot.lines = function () { list( theme_tufte() ,
                                             theme(axis.title.y = element_text(face = "bold")) ,
                                             theme(axis.title.x = element_blank()) ,
                                             theme(strip.text = element_text(face = "bold")) ,
-                                            theme(axis.text.x = element_text(face = "bold", angle = 45, hjust = 0.7, vjust = 0.8)) ,
+                                            theme(strip.text.y = element_text(angle = 0)) ,
+                                            theme(axis.text.x = element_text(face = "bold", angle = 45, hjust = 0.9, vjust = 1.0)) ,
                                             scale_fill_manual(values = my.colours, limits = rev(levels(data$Type))) ,
                                             theme(panel.margin = unit(5, "mm")) ) } `);
 
-$R->run(q` plot = ggplot(data, aes(x = Speciation, y = HO2x.Production, fill = Type)) `,
+$R->run(q` plot = ggplot(begin, aes(x = Speciation, y = HO2x.Production, fill = Type, order = Type)) `,
         q` plot = plot + geom_bar(stat = "identity") `,
-        q` plot = plot + facet_grid(Time ~ Mechanism) `,
+        q` plot = plot + facet_grid(Time ~ mechanism) `,
         q` plot = plot + plot.lines() `,
 );
 
-$R->run(q` CairoPDF(file = "Cumulative_HO2x_budget_allocated_facet_mechanism.pdf", width = 10, height = 6) `,
+$R->run(q` CairoPDF(file = "Cumulative_HO2x_budget_allocated_facet_mechanism.pdf", width = 9.0, height = 6.5) `,
         q` print(plot) `,
         q` dev.off() `,
 );
 
-$R->run(q` plot = ggplot(data, aes(x = Mechanism, y = HO2x.Production, fill = Type)) `,
+$R->run(q` plot = ggplot(begin, aes(x = mechanism, y = HO2x.Production, fill = Type, order = Type)) `,
         q` plot = plot + geom_bar(stat = "identity") `,
         q` plot = plot + facet_grid(Time ~ Speciation) `,
         q` plot = plot + plot.lines() `,
 );
 
-$R->run(q` CairoPDF(file = "Cumulative_HO2x_budget_allocated_facet_speciation.pdf", width = 10, height = 6) `,
+$R->run(q` CairoPDF(file = "Cumulative_HO2x_budget_allocated_facet_speciation.pdf", width = 9.0, height = 6.5) `,
         q` print(plot) `,
         q` dev.off() `,
 );
