@@ -9,11 +9,11 @@ use MECCA;
 use PDL;
 use PDL::NiceSlice;
 
-my $base = "/work/users/jco/Solvent_Emissions";
-#my $base = "/local/home/coates/Solvent_Emissions";
+#my $base = "/work/users/jco/Solvent_Emissions";
+my $base = "/local/home/coates/Solvent_Emissions";
 my @mechanisms = qw(MCM MOZART RADM2);
 my @speciations = qw( DE94 EMEP GR05 GR95 IPCC TNO UK08 UK98 );
-my @runs = qw( Solvents_Only all_sectors mean_NO_source_all_sectors mean_NO_source_Solvents_Only );
+my @runs = qw( Solvents_Only mean_NO_source_Solvents_Only );
 my (%data, %speciation_data);
 
 foreach my $mechanism (@mechanisms) {
