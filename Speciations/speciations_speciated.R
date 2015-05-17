@@ -8,34 +8,14 @@ library(dplyr)
 
 my.colours = c("Acids" = "#0352cb", "Alcohols" = "#011e4b", "Benzene" = "#0e5c28", "Butanes" = "#6e254f", "Chlorinated" = "#ef6638", "CO" = "#898989", "Esters" = "#0357d8", "Ethane" = "#a15daf", "Ethene" = "#dfb100", "Ethers" = "#2b9eb3", "Higher alkanes" = "#38103d", "Ketones" = "#02388b", "Aldehydes" = "#0499fc", "Other alkenes, alkynes, dienes" = "#f9c500", "Other aromatics" = "#216105", "Others" = "#898989", "Pentanes" = "#8f2ac9", "Propane" = "#5c1b54", "Propene" = "#796000", "Terpenes" = "#b99300", "Toluene" = "#0b6956", "Trimethylbenzenes" = "#109c00", "Xylenes" = "#0c734b", "CO" = "#6d6537", "Methane" = "#77aecc", "Inorganic" = "#000000")
 
-mcm.data = read.csv(file = "/local/home/coates/Documents/Analysis/2014_Solvent_Sector_Emissions/Speciations/Speciations_Speciated_for_MCM.csv", header = TRUE)
-mcm.data = select(mcm.data, Types, contains("to"))
-mcm.data = rename(mcm.data, TNO = TNO.to.100., IPCC = IPCC.to.100., EMEP = EMEP.to.100., DE94 = DE94.to.100., GR05 = GR05.to.100., GR95 = GR95.to.100., UK98 = UK98.to.100., UK08 = UK08.to.100.)
-mcm.data = gather(mcm.data, Speciation, Percentage, -Types)
-mcm.data$Percentage = mcm.data$Percentage/100
-mcm.data$Mechanism = rep('MCM', length(mcm.data$Percentage))
-
-mozart.data = read.csv(file = "/local/home/coates/Documents/Analysis/2014_Solvent_Sector_Emissions/Speciations/Speciations_Speciated_for_MOZART.csv", header = TRUE)
-mozart.data = select(mozart.data, Types, contains("to"))
-mozart.data = rename(mozart.data, TNO = TNO.to.100., IPCC = IPCC.to.100., EMEP = EMEP.to.100., DE94 = DE94.to.100., GR05 = GR05.to.100., GR95 = GR95.to.100., UK98 = UK98.to.100., UK08 = UK08.to.100.)
-mozart.data = gather(mozart.data, Speciation, Percentage, -Types)
-mozart.data$Percentage = mozart.data$Percentage/100
-mozart.data$Mechanism = rep('MOZART', length(mozart.data$Percentage))
-
-radm2.data = read.csv(file = "/local/home/coates/Documents/Analysis/2014_Solvent_Sector_Emissions/Speciations/Speciations_Speciated_for_RADM2.csv", header = TRUE)
-radm2.data = select(radm2.data, Types, contains("to"))
-radm2.data = rename(radm2.data, TNO = TNO.to.100., IPCC = IPCC.to.100., EMEP = EMEP.to.100., DE94 = DE94.to.100., GR05 = GR05.to.100., GR95 = GR95.to.100., UK98 = UK98.to.100., UK08 = UK08.to.100.)
-radm2.data = gather(radm2.data, Speciation, Percentage, -Types)
-radm2.data$Percentage = radm2.data$Percentage/100
-radm2.data$Mechanism = rep('RADM2', length(radm2.data$Percentage))
-
-data = rbind(mcm.data, mozart.data, radm2.data)
-data = filter(data, Types != "Total")
-data$Types = factor(data$Types, levels = c("Ethane", "Propane", "Butanes", "Pentanes", "Higher alkanes", "Ethene", "Propene", "Terpenes", "Other alkenes, alkynes, dienes", "Benzene", "Toluene", "Trimethylbenzenes", "Xylenes", "Other aromatics", "Acids", "Alcohols", "Aldehydes", "Esters", "Ethers", "Ketones", "Chlorinated", "Others"))
+data = read.csv(file = "Mapping_initial_species_to_types_all_mechanisms_plot_speciations.csv", header = TRUE)
+data = filter(data, Type != "Total")
+data$Type = factor(data$Type, levels = c("Ethane", "Propane", "Butanes", "Pentanes", "Higher alkanes", "Ethene", "Propene", "Terpenes", "Other alkenes, alkynes, dienes", "Benzene", "Toluene", "Trimethylbenzenes", "Xylenes", "Other aromatics", "Acids", "Alcohols", "Aldehydes", "Esters", "Ethers", "Ketones", "Chlorinated"))
 data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08"))
+data= data %>% gather(Mechanism, Contribution, -Type, -Speciation)
 data = mutate(data, mechanism = factor(Mechanism, labels = c("MCM v3.2", "MOZART-4", "RADM2")))
 
-p = ggplot(data, aes(x = mechanism, y = Percentage, fill = Types, order = Types))
+p = ggplot(data, aes(x = mechanism, y = Contribution, fill = Type, order = Type))
 p = p + geom_bar(stat = "identity", position = "stack")
 p = p + facet_wrap( ~ Speciation, nrow = 2)
 p = p + scale_y_continuous(expand = c(0,0), labels = percent)
@@ -50,7 +30,7 @@ p = p + theme(legend.key.size = unit(8, "mm"))
 p = p + theme(axis.ticks.x = element_blank())
 p = p + theme(axis.text.x = element_text(angle = 45, hjust = 0.8, vjust = 0.8))
 p = p + theme(panel.margin.x = unit(7, "mm"))
-p = p + scale_fill_manual(values = my.colours, limits = rev(levels(data$Types)))
+p = p + scale_fill_manual(values = my.colours, limits = rev(levels(data$Type)))
 
 CairoPDF(file = "Speciations_all_mechanisms.pdf", width = 10, height = 7.5)
 print(p)
