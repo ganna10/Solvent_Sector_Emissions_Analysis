@@ -104,6 +104,9 @@ foreach my $run (sort keys %data) {
             q` print(plot) `,
             q` dev.off() `,
     );
+
+    $R->set('csv.file', "${run}_mixing_ratios.csv");
+    $R->run(q` write.table(data, file = csv.file, sep = ";", row.names = FALSE, col.names = TRUE, quote = FALSE) `);
 };
 
 $R->stop();

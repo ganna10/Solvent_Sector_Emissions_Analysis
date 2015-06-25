@@ -69,7 +69,7 @@ $R->run(q` plot.lines = function () { list( theme_tufte() ,
                                             theme(strip.text = element_text(face = "bold")) ,
                                             theme(panel.margin = unit(5, "mm")) ) } `);
 
-$R->run(q` final.data = filter(data, Type == "Alkanes" ) `);
+$R->run(q` final.data = filter(data, Type == "Oxygenated" ) `);
 #$R->run(q` final.data = filter(data, Type == "Alkanes" | Type == "Oxygenated" ) `);
 $R->run(q` eqn = final.data %>% group_by(mechanism, Type) %>% do(mod2 = cor(.$Ox, .$Emission.Fraction, method = "pearson")) %>% mutate(Label = paste('"r = ', sprintf('%1.3f', mod2[1]), '"')) %>% select(-mod2) `);
 #my $p = $R->run(q` print.data.frame(eqn) `);
@@ -88,7 +88,7 @@ $R->run(q` plot = ggplot(final.data, aes(x = Emission.Fraction, y = Ox, colour =
         q` plot = plot + geom_text(data = eqn, aes(x = 0.45, y = 8.7e9, label = Label), colour = "black", inherit.aes = FALSE, parse = TRUE) + geom_smooth(method = "lm", se = FALSE, colour = "black") `,
 );
 
-$R->run(q` CairoPDF(file = "Ox_production_vs_type_emission_fraction_all_mechanisms.pdf", width = 10, height = 7) `,
+$R->run(q` CairoPDF(file = "Ox_production_vs_oxygenated_emission_fraction_all_mechanisms.pdf", width = 10, height = 7) `,
         q` print(plot) `,
         q` dev.off() `,
 );
