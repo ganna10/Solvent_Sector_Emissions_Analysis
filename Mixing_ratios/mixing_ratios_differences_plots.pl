@@ -20,7 +20,7 @@ my $base = "/work/users/jco/Solvent_Emissions";
 my @mechanisms = qw(MCM MOZART RADM2);
 my @speciations = qw( DE94 EMEP GR05 GR95 IPCC TNO UK08 UK98 );
 #my @runs = qw( Solvents_Only all_sectors mean_NO_source_all_sectors mean_NO_source_Solvents_only );
-my @runs = qw( bio_and_anthro );
+my @runs = qw( Solvents_Only );
 my %data;
 
 my $mecca = MECCA->new("$base/RADM2/DE94_Solvents_Only/boxmodel");
@@ -80,18 +80,28 @@ foreach my $run (sort keys %data) {
     $R->run(q` data = mutate(data, mechanism = factor(Mechanism, labels = c("MCM v3.2", "MOZART-4", "RADM2"))) `);
     
     $R->run(q` plot = ggplot(data, aes(x = Time, y = Mixing.Ratio, colour = Speciation, group = Speciation)) `,
-            q` plot = plot + geom_line() `,
             q` plot = plot + facet_wrap( ~ mechanism) `,
+            q` plot = plot + geom_vline(xintercept = 0:7, colour = "grey") `,
+            #q` plot = plot + annotate("text", x = 0.5, y = 110, label = "Day 1", size = 3, colour = "grey") `,
+            #q` plot = plot + annotate("text", x = 1.5, y = 110, label = "Day 2", size = 3, colour = "grey") `,
+            #q` plot = plot + annotate("text", x = 2.5, y = 110, label = "Day 3", size = 3, colour = "grey") `,
+            #q` plot = plot + annotate("text", x = 3.5, y = 110, label = "Day 4", size = 3, colour = "grey") `,
+            #q` plot = plot + annotate("text", x = 4.5, y = 110, label = "Day 5", size = 3, colour = "grey") `,
+            #q` plot = plot + annotate("text", x = 5.5, y = 110, label = "Day 6", size = 3, colour = "grey") `,
+            #q` plot = plot + annotate("text", x = 6.5, y = 110, label = "Day 7", size = 3, colour = "grey") `,
             q` plot = plot + theme_tufte() `,
+            q` plot = plot + geom_line() `,
             q` plot = plot + ggtitle(title) `,
             #q` plot = plot + scale_y_continuous(expand = c(0, 0)) `,
-            q` plot = plot + scale_x_continuous(limits = c(0, 7), breaks = seq(0, 7, 1), expand = c(0, 0)) `,
+            q` plot = plot + scale_x_continuous(breaks = seq(0, 7, 0.5), expand = c(0, 0.01), labels = c("06:00", "18:00", "06:00", "18:00", "06:00", "18:00", "06:00", "18:00", "06:00", "18:00", "06:00", "18:00", "06:00", "18:00", "06:00")) `,
             q` plot = plot + ylab("Mixing Ratio (ppbv)") `,
-            q` plot = plot + xlab("Time (Days)") `,
+            #q` plot = plot + xlab("Time (Days)") `,
             q` plot = plot + theme(axis.line = element_line(colour = "black")) `,
             q` plot = plot + theme(strip.text = element_text(face = "bold")) `,
             q` plot = plot + theme(plot.title = element_text(face = "bold")) `,
             q` plot = plot + theme(axis.title = element_text(face = "bold")) `,
+            q` plot = plot + theme(axis.text.x = element_text(angle = 45, vjust = 0.5)) `,
+            q` plot = plot + theme(axis.title.x = element_blank()) `,
             q` plot = plot + theme(panel.margin = unit(5, "mm")) `,
             q` plot = plot + theme(legend.title = element_blank()) `,
             #q` plot = plot + theme(legend.position = c(1.03, 1.03)) `,

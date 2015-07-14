@@ -171,7 +171,7 @@ $R->run(q` entire.data = data.frame(Mechanism = "MCM", St.Dev = mcm.sd, Average 
         q` entire.data$St.Dev = sprintf("%.3e", entire.data$St.Dev) `,
         q` entire.data$Average = sprintf("%.3e", entire.data$Average) `,
 );
-$R->run(q` write.table(entire.data, file = "Ozone_time_series_entire_difference_statistics.txt", row.names = FALSE, quote = FALSE, sep = "\t") `);
+#$R->run(q` write.table(entire.data, file = "Ozone_time_series_entire_difference_statistics.txt", row.names = FALSE, quote = FALSE, sep = "\t") `);
 
 $R->set('Time', [("Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7")]);
 $R->run(q` radm2.data = data.frame(Mechanism = rep("RADM2", 7), Time) `,
@@ -195,9 +195,11 @@ $R->run(q` print.data = rbind(mcm.data, mozart.data, radm2.data) `,
 );
 #$R->run(q` write.table(print.data, file = "Ozone_time_series_daily_difference_statistics.txt", row.names = FALSE, quote = FALSE, sep = "\t") `);
 
-$R->run(q` plot.data = print.data %>% gather(Variable, Value, -Mechanism, -Time) `);
-#my $p = $R->run(q` print(plot.data) `);
-#print $p, "\n";
+$R->run(q` plot.data = print.data %>% gather(Variable, Value, -Mechanism, -Time) `,
+        q` plot.data$Value = as.numeric(as.character(plot.data$Value)) `,
+);
+my $p = $R->run(q` print(plot.data) `);
+print $p, "\n";
 $R->run(q` p = ggplot(plot.data, aes( x = Time, y = Value, colour = Mechanism)) `,
         q` p = p + geom_point() `,
         q` p = p + facet_wrap( ~ Variable, scales = "free_y") `,
