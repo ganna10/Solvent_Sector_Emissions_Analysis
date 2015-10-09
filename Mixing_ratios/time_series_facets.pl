@@ -27,7 +27,8 @@ $times /= 86400;
 my %data;
 my @mechanisms = qw( MCM MOZART RADM2 );
 my @speciations = qw( DE94 EMEP GR05 GR95 IPCC TNO UK08 UK98 );
-my @runs = qw( Solvents_Only mean_NO_source );
+my @runs = qw( Solvents_Only );
+#my @runs = qw( Solvents_Only mean_NO_source );
 
 foreach my $mechanism (@mechanisms) {
     foreach my $speciation (@speciations) {
@@ -79,29 +80,30 @@ foreach my $run (keys %data) {
     $R->run(q` data$Speciation = factor(data$Speciation, levels = c("TNO", "IPCC", "EMEP", "DE94", "GR95", "GR05", "UK98", "UK08")) `);
     $R->run(q` my.colours = c("MCM" = "#6c254f", "MOZART" = "#ef6638", "RADM2" = "#0e5c28") `);
     $R->run(q` plot = ggplot(data, aes(x = Time, y = Mixing.Ratio, colour = Mechanism, group = Mechanism)) `,
+            q` plot = plot + geom_vline(xintercept = 0:7, colour = "grey") `,
             q` plot = plot + geom_line() `,
             q` plot = plot + facet_wrap( ~ Speciation, nrow = 2) `,
             q` plot = plot + theme_tufte() `,
             #q` plot = plot + theme_hc() `,
             q` plot = plot + ylab("Mixing Ratio (ppbv)") `,
-            q` plot = plot + xlab("Time (days)") `,
-            q` plot = plot + scale_x_continuous(limits = c(0, 7), breaks = seq(0, 7, 1), expand = c(0, 0)) `,
-            #q` plot = plot + ggtitle(title) `,
+            q` plot = plot + scale_x_continuous(breaks = seq(0, 7, 0.5), expand = c(0, 0.01), labels = c("06:00", "18:00", "06:00", "18:00", "06:00", "18:00", "06:00", "18:00", "06:00", "18:00", "06:00", "18:00", "06:00", "18:00", "06:00")) `,
+            q` plot = plot + scale_y_continuous(limits = c(35, 110)) `,
             q` plot = plot + theme(strip.background = element_blank()) `,
             q` plot = plot + theme(axis.text = element_text(colour = "black")) `,
+            q` plot = plot + theme(axis.text.x = element_text(angle = 45, vjust = 0.5)) `,
             q` plot = plot + theme(axis.ticks = element_line(colour = "black")) `,
             q` plot = plot + theme(axis.line = element_line(colour = "black")) `,
             q` plot = plot + theme(strip.text = element_text(face = "bold")) `,
-            q` plot = plot + theme(plot.title = element_text(face = "bold")) `,
             q` plot = plot + theme(panel.margin.x = unit(0.3, "cm")) `,
             q` plot = plot + theme(axis.title = element_text(face = "bold")) `,
+            q` plot = plot + theme(axis.title.x = element_blank()) `,
             q` plot = plot + theme(legend.title = element_blank()) `,
             q` plot = plot + theme(legend.position = "top") `,
             q` plot = plot + scale_colour_manual(values = my.colours) `,
             #q` plot = plot + theme(panel.grid.major.y = element_line(colour ="black")) `,
     );
 
-    $R->run(q` CairoPDF(file = file.name, width = 10, height = 7) `,
+    $R->run(q` CairoPDF(file = file.name, width = 11, height = 7) `,
             q` print(plot) `,
             q` dev.off() `,
     );
