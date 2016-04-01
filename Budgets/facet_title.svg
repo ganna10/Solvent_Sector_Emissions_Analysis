@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="61.589249"
+   height="257.88263"
+   id="svg16296"
+   version="1.1"
+   inkscape:version="0.48.3.1 r9886"
+   sodipodi:docname="New document 42">
+  <defs
+     id="defs16298">
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath1808">
+      <path
+         inkscape:connector-curvature="0"
+         d="m 380.582,408.781 62.07,0 0,-181.387 -62.07,0 0,181.387 z"
+         id="path1810" />
+    </clipPath>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath1822">
+      <path
+         inkscape:connector-curvature="0"
+         d="m 380.582,214.223 62.07,0 0,-181.387 -62.07,0 0,181.387 z"
+         id="path1824" />
+    </clipPath>
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.35"
+     inkscape:cx="5.794625"
+     inkscape:cy="-19.630118"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     inkscape:window-width="1920"
+     inkscape:window-height="1023"
+     inkscape:window-x="0"
+     inkscape:window-y="27"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata16301">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-369.20538,-254.84944)">
+    <g
+       transform="matrix(1.25,0,0,-1.25,-113.93075,663.26059)"
+       id="g16261">
+      <g
+         id="g1804">
+        <g
+           clip-path="url(#clipPath1808)"
+           id="g1806">
+          <text
+             id="text1812"
+             transform="matrix(1,0,0,-1,401.04297,319.94922)">
+            <tspan
+               id="tspan1814"
+               sodipodi:role="line"
+               y="0"
+               x="0 5.6823001 8.2677002 11.8854 17.0562"
+               style="font-size:9.30000019px;font-variant:normal;font-weight:normal;writing-mode:lr-tb;fill:#1a1a1a;fill-opacity:1;fill-rule:nonzero;stroke:none;font-family:Nimbus Sans L;-inkscape-font-specification:NimbusSansL">First</tspan>
+            <tspan
+               id="tspan1816"
+               sodipodi:role="line"
+               y="9.5039024"
+               x="1.5507843 8.2653847 13.436184"
+               style="font-size:9.30000019px;font-variant:normal;font-weight:normal;writing-mode:lr-tb;fill:#1a1a1a;fill-opacity:1;fill-rule:nonzero;stroke:none;font-family:Nimbus Sans L;-inkscape-font-specification:NimbusSansL">Day</tspan>
+          </text>
+        </g>
+      </g>
+      <g
+         id="g1818">
+        <g
+           clip-path="url(#clipPath1822)"
+           id="g1820">
+          <text
+             id="text1826"
+             transform="matrix(1,0,0,-1,386.0625,120.63672)">
+            <tspan
+               id="tspan1828"
+               sodipodi:role="line"
+               y="0"
+               x="0 6.7146001 12.3969 20.6553 26.337601 28.923 34.0938 37.190701 39.7761 44.946899"
+               style="font-size:9.30000019px;font-variant:normal;font-weight:normal;writing-mode:lr-tb;fill:#1a1a1a;fill-opacity:1;fill-rule:nonzero;stroke:none;font-family:Nimbus Sans L;-inkscape-font-specification:NimbusSansL">Cumulative</tspan>
+          </text>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

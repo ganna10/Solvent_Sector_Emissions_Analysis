@@ -78,3 +78,7 @@ alldays
 
 write.table(alldays, file = "alldays.csv", sep = ",", row.names = FALSE, quote = FALSE)
 write.table(alldiffs, file = "alldiffs.csv", sep = ",", row.names = FALSE, quote = FALSE)
+
+d %>%
+  group_by(Mechanism) %>%
+  summarise(Mean = mean(Mixing.Ratio) * 1e9)
